@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Plotting Tool v3.0 (Rainbow & Inherit)</title>
+    <title>Data Plotting Tool v3.3 (Smart Path)</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -115,16 +115,30 @@
     <div id="app-container">
         <div id="left-panel">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0">Control Panel <span class="badge bg-secondary fs-6" id="version-badge">v3.0</span></h5>
+                <h5 class="mb-0">Control Panel@Yong <span class="badge bg-secondary fs-6" id="version-badge">v3.3</span></h5>
             </div>
 
             <div class="card">
                 <div class="card-header bg-primary text-white">1. File Selection</div>
                 <div class="card-body">
-                    <input type="file" class="form-control form-control-sm mb-2" id="csvFileInput" multiple accept=".csv">
-                    <div class="d-flex justify-content-between">
+                    
+                    <div class="mb-2">
+                        <label class="small fw-bold text-muted mb-1">Option 1: Select Files (File Name Only)</label>
+                        <div class="input-group input-group-sm">
+                            <input type="file" class="form-control" id="csvFileInput" multiple accept=".csv">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted mb-1">Option 2: Select Folder (Include Path)</label>
+                        <div class="input-group input-group-sm">
+                            <input type="file" class="form-control" id="folderInput" webkitdirectory directory multiple>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between border-top pt-2">
                         <small class="text-muted" id="fileCount">0 files</small>
-                        <button class="btn btn-xs btn-outline-danger" onclick="clearFiles()">Clear</button>
+                        <button class="btn btn-xs btn-outline-danger" onclick="clearFiles()">Clear All</button>
                     </div>
                 </div>
             </div>
@@ -132,6 +146,11 @@
             <div class="card">
                 <div class="card-header bg-dark text-white">2. Data Mapping</div>
                 <div class="card-body">
+                    <div class="mb-2">
+                        <label class="axis-label fw-bold" title="Start reading data from this row number">Header Row (Start Line)</label>
+                        <input type="number" id="headerRowInput" class="form-control form-control-sm" value="1" min="1" onchange="reparseCurrentFiles()">
+                    </div>
+
                     <label class="axis-label fw-bold">X-Axis Column</label>
                     <select id="xColSelect" class="form-select form-select-sm mb-2" disabled onchange="saveConfig(); resetMarkersAndPlot()"></select>
                     
@@ -260,20 +279,11 @@
 </div>
 
 <script>
-    // --- Rainbow Colors (Req 2: 彩虹色序) ---
+    // --- Rainbow Colors ---
     const rainbowColors = [
-        '#FF0000', // Red
-        '#FF7F00', // Orange
-        '#FFD700', // Gold/Yellow
-        '#32CD32', // Lime
-        '#008000', // Green
-        '#00CED1', // Dark Turquoise
-        '#0000FF', // Blue
-        '#4B0082', // Indigo
-        '#800080', // Purple
-        '#FF00FF', // Magenta
-        '#A52A2A', // Brown
-        '#808080'  // Grey
+        '#FF0000', '#FF7F00', '#FFD700', '#32CD32', '#008000', 
+        '#00CED1', '#0000FF', '#4B0082', '#800080', '#FF00FF', 
+        '#A52A2A', '#808080'
     ];
     
     let tabsData = {}; 
@@ -287,34 +297,25 @@
         const tabId = `tab_${Date.now()}`;
         const tabName = `Plot ${tabCounter}`;
         
-        // --- Data Inheritance Logic (Req 1: 分頁資料繼承) ---
-        let initialFiles = [];
+        let initialRawFiles = []; 
         let initialConfig = { 
-            chartTitle: '', xLabel: '', yLabel: '', // 新增 Label 欄位
+            chartTitle: '', xLabel: '', yLabel: '', headerRow: 1, 
             xMin: '', xMax: '', xStep: '', yMin: '', yMax: '', yStep: '', 
             xCol: '', yCol: '' 
         };
 
         const tabKeys = Object.keys(tabsData);
-        // 如果已經有其他分頁 (例如 Plot 1)，就複製它的資料
         if (tabKeys.length > 0) {
-            const firstTabId = tabKeys[0]; // 永遠繼承第一個分頁
+            const firstTabId = tabKeys[0];
             const sourceTab = tabsData[firstTabId];
-
-            // 深拷貝檔案列表，並給予新的 ID 以免連動修改顏色
-            initialFiles = sourceTab.files.map(f => ({
-                ...f,
-                id: Date.now() + Math.random(), 
-                selected: true 
-            }));
-
-            // 複製設定
+            initialRawFiles = [...sourceTab.rawFiles];
             initialConfig = { ...sourceTab.config };
         }
 
         tabsData[tabId] = {
             name: tabName,
-            files: initialFiles,
+            rawFiles: initialRawFiles, 
+            files: [],
             markers: [],
             sortOrder: 'none',
             config: initialConfig
@@ -326,7 +327,12 @@
         li.id = `li-${tabId}`;
         li.innerHTML = `<a class="nav-link" onclick="switchTab('${tabId}')" id="link-${tabId}"><span id="text-${tabId}">${tabName}</span><span class="tab-close-btn" onclick="closeTab(event, '${tabId}')">×</span></a>`;
         tabList.appendChild(li);
+        
         switchTab(tabId);
+        
+        if (initialRawFiles.length > 0) {
+            reparseCurrentFiles();
+        }
     }
 
     function closeTab(event, tabId) {
@@ -347,6 +353,8 @@
         if (activeLink) activeLink.classList.add('active');
 
         document.getElementById('csvFileInput').value = '';
+        document.getElementById('folderInput').value = ''; 
+        
         restoreConfig();
         updateFileTable();
         updateSortIcon();
@@ -390,8 +398,9 @@
         if (!activeTab || !tabsData[activeTab]) return;
         const config = tabsData[activeTab].config;
         config.chartTitle = document.getElementById('chartTitle').value;
-        config.xLabel = document.getElementById('xLabelInput').value; // 新增
-        config.yLabel = document.getElementById('yLabelInput').value; // 新增
+        config.xLabel = document.getElementById('xLabelInput').value; 
+        config.yLabel = document.getElementById('yLabelInput').value;
+        config.headerRow = document.getElementById('headerRowInput').value; 
         config.xMin = document.getElementById('xMin').value;
         config.xMax = document.getElementById('xMax').value;
         config.xStep = document.getElementById('xStep').value;
@@ -405,8 +414,9 @@
     function restoreConfig() {
         const config = tabsData[activeTab].config;
         document.getElementById('chartTitle').value = config.chartTitle || '';
-        document.getElementById('xLabelInput').value = config.xLabel || ''; // 新增
-        document.getElementById('yLabelInput').value = config.yLabel || ''; // 新增
+        document.getElementById('xLabelInput').value = config.xLabel || '';
+        document.getElementById('yLabelInput').value = config.yLabel || '';
+        document.getElementById('headerRowInput').value = config.headerRow || '1'; 
         document.getElementById('xMin').value = config.xMin || '';
         document.getElementById('xMax').value = config.xMax || '';
         document.getElementById('xStep').value = config.xStep || '';
@@ -497,54 +507,144 @@
         return 'rgba(255,255,255,' + alpha + ')';
     }
 
+    // --- FILE INPUT HANDLERS (Dual Mode with Import Logic) ---
+    
+    // Option 1: Select Files (File Mode)
     document.getElementById('csvFileInput').addEventListener('change', function(e) {
-        const files = e.target.files;
-        if (files.length === 0) return;
-        let filesList = tabsData[activeTab].files; 
-        let filesProcessed = 0;
-        
-        Array.from(files).forEach((file) => {
-            Papa.parse(file, {
-                header: true, dynamicTyping: true, skipEmptyLines: true,
-                complete: function(results) {
-                    let finalName = file.name.replace('.csv', '');
-                    let counter = 1;
-                    while (filesList.some(f => f.name === finalName)) {
-                        finalName = `${file.name.replace('.csv', '')} (${counter})`; counter++;
-                    }
-                    filesList.push({
-                        id: Date.now() + Math.random(), name: finalName, originalName: file.name,
-                        data: results.data, 
-                        // 使用彩虹色序
-                        color: rainbowColors[filesList.length % rainbowColors.length], 
-                        selected: true
-                    });
-                    filesProcessed++;
-                    if (filesProcessed === files.length) {
-                        if (document.getElementById('xColSelect').options.length === 0) {
-                            const columns = Object.keys(filesList[0].data[0]);
-                            const xSelect = document.getElementById('xColSelect');
-                            const ySelect = document.getElementById('yColSelect');
-                            columns.forEach(col => { xSelect.add(new Option(col, col)); ySelect.add(new Option(col, col)); });
-                            xSelect.value = columns.includes('SG_power') ? 'SG_power' : columns[0];
-                            ySelect.value = columns.includes('Gain') ? 'Gain' : (columns[1] || columns[0]);
-                            saveConfig();
-                        }
-                        document.getElementById('xColSelect').disabled = false;
-                        document.getElementById('yColSelect').disabled = false;
-                        document.getElementById('plotBtn').disabled = false;
-                        document.getElementById('fileCount').innerText = `${filesList.length} files`;
-                        updateFileTable();
-                        document.getElementById('plotBtn').click();
-                    }
-                }
-            });
-        });
+        handleNewFiles(e.target.files, 'file');
     });
 
+    // Option 2: Select Folder (Folder Mode)
+    document.getElementById('folderInput').addEventListener('change', function(e) {
+        handleNewFiles(e.target.files, 'folder');
+    });
+
+    // Shared File Processing Logic
+    function handleNewFiles(fileList, mode) {
+        if (!fileList || fileList.length === 0) return;
+        
+        // Filter CSV
+        const csvFiles = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.csv'));
+        
+        if (csvFiles.length === 0) {
+            alert("No CSV files found in selection.");
+            return;
+        }
+
+        // Add metadata to file object to remember how it was imported
+        csvFiles.forEach(f => {
+            f.importMode = mode; // 'file' or 'folder'
+        });
+
+        // Add to raw files
+        tabsData[activeTab].rawFiles = [...tabsData[activeTab].rawFiles, ...csvFiles];
+        
+        // Trigger parsing
+        processFiles(csvFiles);
+    }
+
+    function reparseCurrentFiles() {
+        if (!activeTab || !tabsData[activeTab]) return;
+        const rawFiles = tabsData[activeTab].rawFiles;
+        if (rawFiles.length === 0) return;
+        tabsData[activeTab].files = [];
+        tabsData[activeTab].markers = [];
+        processFiles(rawFiles, true);
+    }
+
+    function processFiles(filesToProcess, isReparse = false) {
+        let filesProcessed = 0;
+        const headerRowIndex = (parseInt(document.getElementById('headerRowInput').value) || 1) - 1;
+        let filesList = isReparse ? [] : tabsData[activeTab].files; 
+
+        filesToProcess.forEach((file) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                const lines = content.split(/\r\n|\n/);
+                
+                if (lines.length <= headerRowIndex) {
+                    console.warn(`Skipping ${file.name}: Not enough rows.`);
+                    filesProcessed++;
+                    return;
+                }
+
+                const cleanedContent = lines.slice(headerRowIndex).join('\n');
+
+                Papa.parse(cleanedContent, {
+                    header: true, dynamicTyping: true, skipEmptyLines: true,
+                    complete: function(results) {
+                        if(results.meta && results.meta.fields && results.meta.fields.length > 0) {
+                            
+                            // --- SMART NAMING LOGIC ---
+                            let displayName = "";
+                            if (file.importMode === 'folder' && file.webkitRelativePath) {
+                                // Use relative path (e.g., "Folder/Data.csv")
+                                displayName = file.webkitRelativePath.replace('.csv', '');
+                            } else {
+                                // Use file name only (e.g., "Data.csv")
+                                displayName = file.name.replace('.csv', '');
+                            }
+
+                            let finalName = displayName;
+                            let counter = 1;
+                            while (filesList.some(f => f.name === finalName)) {
+                                finalName = `${displayName} (${counter})`; counter++;
+                            }
+                            
+                            filesList.push({
+                                id: Date.now() + Math.random(), 
+                                name: finalName, 
+                                originalName: file.name,
+                                data: results.data, 
+                                color: rainbowColors[filesList.length % rainbowColors.length], 
+                                selected: true
+                            });
+                        }
+                        
+                        filesProcessed++;
+                        if (filesProcessed === filesToProcess.length) {
+                            if (isReparse) tabsData[activeTab].files = filesList;
+                            
+                            if (document.getElementById('xColSelect').options.length === 0 || isReparse) {
+                                const xSelect = document.getElementById('xColSelect');
+                                const ySelect = document.getElementById('yColSelect');
+                                xSelect.innerHTML = ''; ySelect.innerHTML = '';
+                                
+                                if (filesList.length > 0 && filesList[0].data.length > 0) {
+                                    const columns = Object.keys(filesList[0].data[0]);
+                                    columns.forEach(col => { xSelect.add(new Option(col, col)); ySelect.add(new Option(col, col)); });
+                                    
+                                    const savedX = tabsData[activeTab].config.xCol;
+                                    const savedY = tabsData[activeTab].config.yCol;
+                                    xSelect.value = (savedX && columns.includes(savedX)) ? savedX : (columns.includes('SG_power') ? 'SG_power' : columns[0]);
+                                    ySelect.value = (savedY && columns.includes(savedY)) ? savedY : (columns.includes('Gain') ? 'Gain' : (columns[1] || columns[0]));
+                                }
+                                saveConfig();
+                            }
+                            
+                            document.getElementById('xColSelect').disabled = false;
+                            document.getElementById('yColSelect').disabled = false;
+                            document.getElementById('plotBtn').disabled = false;
+                            document.getElementById('fileCount').innerText = `${filesList.length} files`;
+                            
+                            updateFileTable();
+                            document.getElementById('plotBtn').click();
+                        }
+                    }
+                });
+            };
+            reader.readAsText(file);
+        });
+    }
+
     function clearFiles() {
-        tabsData[activeTab].files = []; tabsData[activeTab].markers = []; tabsData[activeTab].config = {}; 
+        tabsData[activeTab].files = []; 
+        tabsData[activeTab].rawFiles = []; 
+        tabsData[activeTab].markers = []; 
+        tabsData[activeTab].config = {}; 
         document.getElementById('csvFileInput').value = '';
+        document.getElementById('folderInput').value = ''; 
         clearUIForEmpty();
     }
 
@@ -591,10 +691,8 @@
         const yCol = document.getElementById('yColSelect').value;
         const chartTitleVal = document.getElementById('chartTitle').value;
         
-        // Req 3: 移除 Plot: 前綴，若無輸入標題則顯示 Y vs X
         const plotTitle = chartTitleVal ? chartTitleVal : `${yCol} vs ${xCol}`;
         
-        // Req 4: 獲取自定義軸名稱
         const xLabelVal = document.getElementById('xLabelInput').value;
         const yLabelVal = document.getElementById('yLabelInput').value;
 
@@ -621,7 +719,6 @@
 
         const layout = {
             title: { text: plotTitle, font: { size: 18 } },
-            // 使用自定義 Label 或預設 Column Name
             xaxis: { title: xLabelVal || xCol, showgrid: true, zeroline: false, range: (xMin!==null && xMax!==null)?[xMin,xMax]:null, dtick: xStep },
             yaxis: { title: yLabelVal || yCol, showgrid: true, zeroline: false, range: (yMin!==null && yMax!==null)?[yMin,yMax]:null, dtick: yStep },
             hovermode: 'closest',
