@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Plotting Tool v3.3@Yong (Smart Path)</title>
+    <title>Data Plotting Tool v3.5 (Global Scroll)</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -54,11 +54,14 @@
         /* 內容區域 */
         #app-container { display: flex; flex: 1; overflow: hidden; }
 
+        /* 左側面板 - 設定 overflow-y: auto 讓整體可捲動 */
         #left-panel {
             width: 800px; 
             min-width: 250px; max-width: 1600px;
             background-color: #f8f9fa; border-right: 1px solid #ddd;
-            overflow-y: auto; padding: 15px; display: flex; flex-direction: column;
+            overflow-y: auto; /* 關鍵：開啟垂直捲動 */
+            padding: 15px; display: flex; flex-direction: column;
+            height: 100%; /* 填滿高度 */
         }
 
         #h-resizer {
@@ -83,12 +86,12 @@
         #chart-container { height: 60%; min-height: 200px; display: flex; flex-direction: column; }
         #table-container { flex: 1; min-height: 150px; display: flex; flex-direction: column; overflow: hidden; }
 
-        .card { margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #eee; }
+        .card { margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #eee; flex-shrink: 0; }
         .card-header { font-weight: 600; padding: 6px 15px; font-size: 0.9rem; }
         .card-body { padding: 10px; }
         
         #plotDiv { width: 100%; height: 100%; background: white; }
-        .table-responsive { height: 100%; overflow-y: auto; }
+        .table-responsive { overflow-y: auto; } /* 移除 height: 100% 改由 max-height 控制 */
         .axis-label { font-size: 0.75rem; color: #666; margin-bottom: 2px; }
         
         #markerTable { border-collapse: separate; border-spacing: 0; width: 100%; }
@@ -115,27 +118,24 @@
     <div id="app-container">
         <div id="left-panel">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0">Control Panel@Yong <span class="badge bg-secondary fs-6" id="version-badge">v3.3</span></h5>
+                <h5 class="mb-0">Control Panel@Yong <span class="badge bg-secondary fs-6" id="version-badge">v3.5</span></h5>
             </div>
 
             <div class="card">
                 <div class="card-header bg-primary text-white">1. File Selection</div>
                 <div class="card-body">
-                    
                     <div class="mb-2">
-                        <label class="small fw-bold text-muted mb-1">Option 1: Select Files (File Name Only)</label>
+                        <label class="small fw-bold text-muted mb-1">Option 1: Select Files</label>
                         <div class="input-group input-group-sm">
                             <input type="file" class="form-control" id="csvFileInput" multiple accept=".csv">
                         </div>
                     </div>
-
                     <div class="mb-3">
-                        <label class="small fw-bold text-muted mb-1">Option 2: Select Folder (Include Path)</label>
+                        <label class="small fw-bold text-muted mb-1">Option 2: Select Folder</label>
                         <div class="input-group input-group-sm">
                             <input type="file" class="form-control" id="folderInput" webkitdirectory directory multiple>
                         </div>
                     </div>
-
                     <div class="d-flex justify-content-between border-top pt-2">
                         <small class="text-muted" id="fileCount">0 files</small>
                         <button class="btn btn-xs btn-outline-danger" onclick="clearFiles()">Clear All</button>
@@ -147,13 +147,11 @@
                 <div class="card-header bg-dark text-white">2. Data Mapping</div>
                 <div class="card-body">
                     <div class="mb-2">
-                        <label class="axis-label fw-bold" title="Start reading data from this row number">Header Row (Start Line)</label>
+                        <label class="axis-label fw-bold">Header Row (Start Line)</label>
                         <input type="number" id="headerRowInput" class="form-control form-control-sm" value="1" min="1" onchange="reparseCurrentFiles()">
                     </div>
-
                     <label class="axis-label fw-bold">X-Axis Column</label>
                     <select id="xColSelect" class="form-select form-select-sm mb-2" disabled onchange="saveConfig(); resetMarkersAndPlot()"></select>
-                    
                     <label class="axis-label fw-bold">Y-Axis Column</label>
                     <select id="yColSelect" class="form-select form-select-sm" disabled onchange="saveConfig(); resetMarkersAndPlot()"></select>
                 </div>
@@ -190,11 +188,17 @@
                         <div class="col-4"><input type="number" id="yMax" class="form-control form-control-sm" placeholder="Max" onchange="saveConfig()"></div>
                         <div class="col-4"><input type="number" id="yStep" class="form-control form-control-sm" placeholder="Step" onchange="saveConfig()"></div>
                     </div>
-                    <button class="btn btn-sm btn-success w-100" id="plotBtn" disabled>Plot / Update</button>
+                    
+                    <div class="border-top pt-2 mt-2">
+                        <label class="axis-label fw-bold text-danger">Spec Line (Y-Value)</label>
+                        <input type="number" id="specInput" class="form-control form-control-sm" placeholder="e.g. -20 (Black Dashed Line)" onchange="saveConfig()">
+                    </div>
+
+                    <button class="btn btn-sm btn-success w-100 mt-3" id="plotBtn" disabled>Plot / Update</button>
                 </div>
             </div>
 
-            <div class="card flex-grow-1" style="display: flex; flex-direction: column; overflow: hidden;">
+            <div class="card">
                 <div class="card-header bg-info text-white d-flex justify-content-between align-items-center py-1">
                     <span>4. Series</span>
                     <div>
@@ -202,8 +206,8 @@
                         <button class="btn btn-xs btn-light py-0" onclick="toggleAllFiles(false)">None</button>
                     </div>
                 </div>
-                <div class="card-body p-0" style="flex-grow: 1; position: relative;">
-                    <div class="table-responsive" style="position: absolute; top: 0; bottom: 0; left: 0; right: 0;">
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 400px;">
                         <table class="table table-sm table-hover mb-0" id="fileTable" style="font-size: 0.8rem;">
                             <thead class="table-light">
                                 <tr>
@@ -249,7 +253,9 @@
                             </div>
                             <div class="col">
                                 <button class="btn btn-xs btn-dark" onclick="addMarker()">Add</button>
-                                <button class="btn btn-xs btn-danger" onclick="findOP1dB()">OP1dB</button>
+                                <button class="btn btn-xs btn-outline-dark fw-bold" onclick="findMaxMarker()">Max</button>
+                                <button class="btn btn-xs btn-outline-dark fw-bold" onclick="findMinMarker()">Min</button>
+                                <button class="btn btn-xs btn-danger ms-2" onclick="findOP1dB()">OP1dB</button>
                                 <button class="btn btn-xs btn-secondary" onclick="clearMarkers()">Clear</button>
                             </div>
                         </div>
@@ -300,7 +306,7 @@
         let initialRawFiles = []; 
         let initialConfig = { 
             chartTitle: '', xLabel: '', yLabel: '', headerRow: 1, 
-            xMin: '', xMax: '', xStep: '', yMin: '', yMax: '', yStep: '', 
+            xMin: '', xMax: '', xStep: '', yMin: '', yMax: '', yStep: '', specValue: '', 
             xCol: '', yCol: '' 
         };
 
@@ -407,6 +413,7 @@
         config.yMin = document.getElementById('yMin').value;
         config.yMax = document.getElementById('yMax').value;
         config.yStep = document.getElementById('yStep').value;
+        config.specValue = document.getElementById('specInput').value; 
         config.xCol = document.getElementById('xColSelect').value;
         config.yCol = document.getElementById('yColSelect').value;
     }
@@ -423,6 +430,7 @@
         document.getElementById('yMin').value = config.yMin || '';
         document.getElementById('yMax').value = config.yMax || '';
         document.getElementById('yStep').value = config.yStep || '';
+        document.getElementById('specInput').value = config.specValue || ''; 
         
         const files = tabsData[activeTab].files;
         const xSelect = document.getElementById('xColSelect');
@@ -507,39 +515,16 @@
         return 'rgba(255,255,255,' + alpha + ')';
     }
 
-    // --- FILE INPUT HANDLERS (Dual Mode with Import Logic) ---
-    
-    // Option 1: Select Files (File Mode)
-    document.getElementById('csvFileInput').addEventListener('change', function(e) {
-        handleNewFiles(e.target.files, 'file');
-    });
+    // --- FILE INPUT HANDLERS ---
+    document.getElementById('csvFileInput').addEventListener('change', function(e) { handleNewFiles(e.target.files, 'file'); });
+    document.getElementById('folderInput').addEventListener('change', function(e) { handleNewFiles(e.target.files, 'folder'); });
 
-    // Option 2: Select Folder (Folder Mode)
-    document.getElementById('folderInput').addEventListener('change', function(e) {
-        handleNewFiles(e.target.files, 'folder');
-    });
-
-    // Shared File Processing Logic
     function handleNewFiles(fileList, mode) {
         if (!fileList || fileList.length === 0) return;
-        
-        // Filter CSV
         const csvFiles = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.csv'));
-        
-        if (csvFiles.length === 0) {
-            alert("No CSV files found in selection.");
-            return;
-        }
-
-        // Add metadata to file object to remember how it was imported
-        csvFiles.forEach(f => {
-            f.importMode = mode; // 'file' or 'folder'
-        });
-
-        // Add to raw files
+        if (csvFiles.length === 0) { alert("No CSV files found."); return; }
+        csvFiles.forEach(f => { f.importMode = mode; });
         tabsData[activeTab].rawFiles = [...tabsData[activeTab].rawFiles, ...csvFiles];
-        
-        // Trigger parsing
         processFiles(csvFiles);
     }
 
@@ -564,7 +549,6 @@
                 const lines = content.split(/\r\n|\n/);
                 
                 if (lines.length <= headerRowIndex) {
-                    console.warn(`Skipping ${file.name}: Not enough rows.`);
                     filesProcessed++;
                     return;
                 }
@@ -575,14 +559,10 @@
                     header: true, dynamicTyping: true, skipEmptyLines: true,
                     complete: function(results) {
                         if(results.meta && results.meta.fields && results.meta.fields.length > 0) {
-                            
-                            // --- SMART NAMING LOGIC ---
                             let displayName = "";
                             if (file.importMode === 'folder' && file.webkitRelativePath) {
-                                // Use relative path (e.g., "Folder/Data.csv")
                                 displayName = file.webkitRelativePath.replace('.csv', '');
                             } else {
-                                // Use file name only (e.g., "Data.csv")
                                 displayName = file.name.replace('.csv', '');
                             }
 
@@ -593,9 +573,7 @@
                             }
                             
                             filesList.push({
-                                id: Date.now() + Math.random(), 
-                                name: finalName, 
-                                originalName: file.name,
+                                id: Date.now() + Math.random(), name: finalName, originalName: file.name,
                                 data: results.data, 
                                 color: rainbowColors[filesList.length % rainbowColors.length], 
                                 selected: true
@@ -695,6 +673,7 @@
         
         const xLabelVal = document.getElementById('xLabelInput').value;
         const yLabelVal = document.getElementById('yLabelInput').value;
+        const specVal = parseFloat(document.getElementById('specInput').value);
 
         const getVal = (id) => { const v = document.getElementById(id).value; return v === "" ? null : parseFloat(v); };
         const xMin = getVal('xMin'), xMax = getVal('xMax'), xStep = getVal('xStep');
@@ -717,11 +696,21 @@
             });
         });
 
+        const shapes = [];
+        if (!isNaN(specVal)) {
+            shapes.push({
+                type: 'line', xref: 'paper', x0: 0, x1: 1,
+                y0: specVal, y1: specVal,
+                line: { color: 'black', width: 2, dash: 'dash' }
+            });
+        }
+
         const layout = {
             title: { text: plotTitle, font: { size: 18 } },
             xaxis: { title: xLabelVal || xCol, showgrid: true, zeroline: false, range: (xMin!==null && xMax!==null)?[xMin,xMax]:null, dtick: xStep },
             yaxis: { title: yLabelVal || yCol, showgrid: true, zeroline: false, range: (yMin!==null && yMax!==null)?[yMin,yMax]:null, dtick: yStep },
             hovermode: 'closest',
+            shapes: shapes, 
             legend: { bgcolor: 'rgba(255,255,255,0.8)', bordercolor: '#E2E2E2', borderwidth: 1 },
             margin: { t: 40, r: 20, l: 50, b: 40 }
         };
@@ -772,6 +761,28 @@
         addMarkerData(xVal, yVal, `M${tabsData[activeTab].markers.length+1}`, file.name, file.id);
     };
 
+    window.findMaxMarker = () => {
+        const fIdx = document.getElementById('markerLineSelect').value;
+        const files = tabsData[activeTab].files;
+        if (!fIdx) { alert("Select a line"); return; }
+        const file = files[fIdx];
+        if (!file.cacheX) { alert("Plot first"); return; }
+        const maxY = Math.max(...file.cacheY);
+        const maxIdx = file.cacheY.indexOf(maxY);
+        addMarkerData(file.cacheX[maxIdx], maxY, `Max`, file.name, file.id, "Max Value");
+    };
+
+    window.findMinMarker = () => {
+        const fIdx = document.getElementById('markerLineSelect').value;
+        const files = tabsData[activeTab].files;
+        if (!fIdx) { alert("Select a line"); return; }
+        const file = files[fIdx];
+        if (!file.cacheX) { alert("Plot first"); return; }
+        const minY = Math.min(...file.cacheY);
+        const minIdx = file.cacheY.indexOf(minY);
+        addMarkerData(file.cacheX[minIdx], minY, `Min`, file.name, file.id, "Min Value");
+    };
+
     window.findOP1dB = () => {
         const markers = tabsData[activeTab].markers;
         if (markers.length === 0) { alert("Add reference marker first"); return; }
@@ -804,8 +815,10 @@
             marker: { color: 'red', size: 10, symbol: 'circle-open', line: {width: 2} },
             text: [`${mObj.name}<br>${mObj.y.toFixed(2)}`], textposition: 'top center', showlegend: false, hoverinfo: 'text'
         });
+        
         const layout = document.getElementById('plotDiv').layout;
-        const newShapes = (layout.shapes || []).concat([
+        const currentShapes = layout.shapes || [];
+        const newShapes = currentShapes.concat([
             { type: 'line', x0: mObj.x, y0: layout.yaxis.range?layout.yaxis.range[0]:0, x1: mObj.x, y1: mObj.y, line: {color:'red', dash:'dot', width:1} },
             { type: 'line', x0: layout.xaxis.range?layout.xaxis.range[0]:0, y0: mObj.y, x1: mObj.x, y1: mObj.y, line: {color:'red', dash:'dot', width:1} }
         ]);
@@ -833,4 +846,3 @@
 
 </body>
 </html>
-
