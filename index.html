@@ -3,14 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Plotting Tool v3.5@Yong (Global Scroll)</title>
+    <title>Data Plotting Tool v4.3@Yong (No Legend Border)</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script async defer src="https://apis.google.com/js/api.js"></script>
+    <script async defer src="https://accounts.google.com/gsi/client"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
     <style>
-        body, html { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #f8f9fa; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; }
+        /* --- 全局設定 --- */
+        html { font-size: 115%; }
+        body, html { 
+            height: 100%; margin: 0; padding: 0; overflow: hidden; 
+            background-color: #f8f9fa; 
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 1rem;
+        }
         
         #main-wrapper { display: flex; flex-direction: column; height: 100vh; }
 
@@ -20,57 +30,43 @@
             background-color: #fff;
             border-bottom: 1px solid #ddd;
             padding: 5px 10px 0 10px;
-            display: flex;
-            align-items: flex-end;
+            display: flex; align-items: flex-end;
         }
         .nav-tabs { border-bottom: none; flex-grow: 1; }
         .nav-tabs .nav-item { margin-right: 2px; }
         .nav-tabs .nav-link { 
             cursor: pointer; font-weight: 600; color: #495057; 
-            border: 1px solid transparent; border-bottom: none;
-            padding: 8px 12px;
-            display: flex; align-items: center; gap: 8px;
+            padding: 8px 12px; display: flex; align-items: center; gap: 8px;
         }
-        .nav-tabs .nav-link:hover { background-color: #e9ecef; }
-        .nav-tabs .nav-link.active { 
-            color: #0d6efd; background-color: #f8f9fa; 
-            border-color: #ddd #ddd #f8f9fa; 
-        }
-        
-        .tab-close-btn {
-            font-size: 0.8rem; width: 16px; height: 16px; line-height: 14px;
-            text-align: center; border-radius: 50%; color: #999;
-        }
-        .tab-close-btn:hover { background-color: #dc3545; color: white; }
+        .nav-tabs .nav-link.active { color: #0d6efd; background-color: #f8f9fa; border-color: #ddd #ddd #f8f9fa; }
+        .tab-close-btn:hover { background-color: #dc3545; color: white; border-radius: 50%; width: 20px; text-align: center;}
+        #add-tab-btn { cursor: pointer; font-weight: bold; padding: 5px 10px; color: #28a745; font-size: 1.2rem; }
 
-        #add-tab-btn {
-            width: 30px; height: 30px; border-radius: 4px; border: 1px solid #ddd;
-            background: #fff; color: #28a745; font-weight: bold; font-size: 1.2rem;
-            line-height: 1; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; margin-left: 5px; margin-bottom: 5px;
-        }
-        #add-tab-btn:hover { background-color: #eafaf1; border-color: #28a745; }
-
-        /* 內容區域 */
+        /* --- 內容區域佈局 --- */
         #app-container { display: flex; flex: 1; overflow: hidden; }
 
-        /* 左側面板 - 設定 overflow-y: auto 讓整體可捲動 */
+        /* 左側控制面板 */
         #left-panel {
-            width: 800px; 
-            min-width: 250px; max-width: 1600px;
+            width: 400px; min-width: 300px; max-width: 1600px;
             background-color: #f8f9fa; border-right: 1px solid #ddd;
-            overflow-y: auto; /* 關鍵：開啟垂直捲動 */
-            padding: 15px; display: flex; flex-direction: column;
-            height: 100%; /* 填滿高度 */
+            padding: 15px; 
+            display: block; 
+            overflow-y: auto; 
+            height: 100%;
+        }
+
+        .series-table-container {
+            max-height: 400px; 
+            overflow-y: auto;  
+            border: 1px solid #dee2e6;
         }
 
         #h-resizer {
-            width: 6px; background-color: #e9ecef; cursor: col-resize;
-            display: flex; align-items: center; justify-content: center;
-            border-left: 1px solid #dee2e6; border-right: 1px solid #dee2e6; z-index: 10;
+            width: 6px; background-color: #e9ecef; cursor: col-resize; z-index: 10;
+            border-left: 1px solid #dee2e6; border-right: 1px solid #dee2e6;
         }
-        #h-resizer:hover, #h-resizer.resizing { background-color: #ced4da; }
 
+        /* 右側圖表區域 */
         #right-panel {
             flex-grow: 1; background-color: #ffffff; display: flex;
             flex-direction: column; overflow: hidden; padding: 10px;
@@ -78,33 +74,31 @@
 
         #v-resizer {
             height: 8px; background-color: #e9ecef; cursor: row-resize;
-            display: flex; align-items: center; justify-content: center;
             margin: 5px 0; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; flex-shrink: 0;
         }
-        #v-resizer:hover, #v-resizer.resizing { background-color: #ced4da; }
 
         #chart-container { height: 60%; min-height: 200px; display: flex; flex-direction: column; }
         #table-container { flex: 1; min-height: 150px; display: flex; flex-direction: column; overflow: hidden; }
 
-        .card { margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #eee; flex-shrink: 0; }
-        .card-header { font-weight: 600; padding: 6px 15px; font-size: 0.9rem; }
-        .card-body { padding: 10px; }
+        /* 卡片樣式 */
+        .card { margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #eee; }
+        .card-header { font-weight: 600; padding: 8px 15px; font-size: 0.95rem; }
+        .card-body { padding: 12px; }
         
         #plotDiv { width: 100%; height: 100%; background: white; }
-        .table-responsive { overflow-y: auto; } /* 移除 height: 100% 改由 max-height 控制 */
-        .axis-label { font-size: 0.75rem; color: #666; margin-bottom: 2px; }
         
-        #markerTable { border-collapse: separate; border-spacing: 0; width: 100%; }
-        #markerTable td, #markerTable th { vertical-align: middle; background-color: transparent !important; padding: 4px 8px; }
-        #markerTable thead th, #fileTable thead th { position: sticky; top: 0; z-index: 1; background-color: #f8f9fa; }
-        
-        .sortable-header { cursor: pointer; user-select: none; transition: background-color 0.2s; }
-        .sortable-header:hover { background-color: #e9ecef; }
+        .marker-scroll-container {
+            position: absolute; top: 0; bottom: 0; left: 0; right: 0; overflow-y: auto;
+        }
 
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #aaa; }
-        .no-select { user-select: none; }
+        .axis-label { font-size: 0.8rem; color: #555; margin-bottom: 2px; }
+        .sortable-header { cursor: pointer; user-select: none; }
+        .sortable-header:hover { background-color: #e9ecef; }
+        
+        #drive-config { display: none; background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+        
+        .form-control-sm, .form-select-sm, .btn-xs { font-size: 0.85rem; }
+        .btn-group-xs > .btn, .btn-xs { padding: .25rem .4rem; line-height: 1.5; border-radius: .2rem; }
     </style>
 </head>
 <body>
@@ -118,27 +112,42 @@
     <div id="app-container">
         <div id="left-panel">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0">Control Panel@Yong <span class="badge bg-secondary fs-6" id="version-badge">v3.5</span></h5>
+                <h5 class="mb-0">Control Panel@Yong下午 01:42 2025/12/8 <span class="badge bg-secondary fs-6">v4.3</span></h5>
             </div>
 
             <div class="card">
                 <div class="card-header bg-primary text-white">1. File Selection</div>
                 <div class="card-body">
                     <div class="mb-2">
-                        <label class="small fw-bold text-muted mb-1">Option 1: Select Files</label>
-                        <div class="input-group input-group-sm">
-                            <input type="file" class="form-control" id="csvFileInput" multiple accept=".csv">
-                        </div>
+                        <label class="small fw-bold text-muted mb-1">Local Files</label>
+                        <input type="file" class="form-control form-control-sm mb-1" id="csvFileInput" multiple accept=".csv">
+                        <input type="file" class="form-control form-control-sm" id="folderInput" webkitdirectory directory multiple>
                     </div>
+
                     <div class="mb-3">
-                        <label class="small fw-bold text-muted mb-1">Option 2: Select Folder</label>
-                        <div class="input-group input-group-sm">
-                            <input type="file" class="form-control" id="folderInput" webkitdirectory directory multiple>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="small fw-bold text-muted">Google Drive</label>
+                            <a href="#" onclick="toggleDriveConfig()" style="font-size: 0.75rem;">⚙️ API</a>
                         </div>
+                        <div id="drive-config">
+                            <small class="d-block text-danger mb-2">Requires http://localhost</small>
+                            <input type="text" id="gApiKey" class="form-control form-control-sm mb-1" placeholder="API Key">
+                            <input type="text" id="gClientId" class="form-control form-control-sm mb-1" placeholder="Client ID">
+                            <input type="text" id="gAppId" class="form-control form-control-sm mb-2" placeholder="App ID">
+                            <button class="btn btn-xs btn-dark w-100" onclick="saveDriveConfig()">Save Config</button>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary w-100" id="drivePickBtn" onclick="handleAuthClick()">📂 Google Drive Picker</button>
+                        <div id="drive-status" class="small text-muted mt-1 text-center"></div>
                     </div>
-                    <div class="d-flex justify-content-between border-top pt-2">
-                        <small class="text-muted" id="fileCount">0 files</small>
-                        <button class="btn btn-xs btn-outline-danger" onclick="clearFiles()">Clear All</button>
+
+                    <div class="d-flex flex-column gap-2 border-top pt-2">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted" id="fileCount">0 files</small>
+                            <button class="btn btn-xs btn-outline-danger" onclick="clearFiles()">Clear All</button>
+                        </div>
+                        <button class="btn btn-sm btn-success w-100" onclick="exportMergedCSV()">
+                            💾 Export Merged CSV (Wide)
+                        </button>
                     </div>
                 </div>
             </div>
@@ -147,7 +156,7 @@
                 <div class="card-header bg-dark text-white">2. Data Mapping</div>
                 <div class="card-body">
                     <div class="mb-2">
-                        <label class="axis-label fw-bold">Header Row (Start Line)</label>
+                        <label class="axis-label fw-bold">Header Row</label>
                         <input type="number" id="headerRowInput" class="form-control form-control-sm" value="1" min="1" onchange="reparseCurrentFiles()">
                     </div>
                     <label class="axis-label fw-bold">X-Axis Column</label>
@@ -165,33 +174,41 @@
                 <div class="card-body">
                     <div class="mb-2">
                         <label class="axis-label">Chart Title</label>
-                        <input type="text" id="chartTitle" class="form-control form-control-sm" placeholder="Default: Y vs X" onchange="saveConfig()">
+                        <input type="text" id="chartTitle" class="form-control form-control-sm" onchange="saveConfig()">
                     </div>
+                    
                     <div class="row g-1 mb-2">
                         <div class="col-6">
-                            <input type="text" id="xLabelInput" class="form-control form-control-sm" placeholder="X Label (Optional)" onchange="saveConfig()">
+                             <label class="axis-label fw-bold text-primary">Global Font (px)</label>
+                             <input type="number" id="chartFontSizeInput" class="form-control form-control-sm" value="14" min="8" max="40" onchange="saveConfig()">
                         </div>
                         <div class="col-6">
-                            <input type="text" id="yLabelInput" class="form-control form-control-sm" placeholder="Y Label (Optional)" onchange="saveConfig()">
+                             <label class="axis-label fw-bold text-primary">Legend Font (px)</label>
+                             <input type="number" id="legendFontSizeInput" class="form-control form-control-sm" value="12" min="8" max="40" onchange="saveConfig()">
                         </div>
                     </div>
 
+                    <div class="row g-1 mb-2">
+                        <div class="col-6"><input type="text" id="xLabelInput" class="form-control form-control-sm" placeholder="X Label" onchange="saveConfig()"></div>
+                        <div class="col-6"><input type="text" id="yLabelInput" class="form-control form-control-sm" placeholder="Y Label" onchange="saveConfig()"></div>
+                    </div>
+
                     <div class="row g-1 mb-1">
-                        <div class="col-12"><strong class="axis-label">X-Axis Range</strong></div>
+                        <div class="col-12"><strong class="axis-label">X Range</strong></div>
                         <div class="col-4"><input type="number" id="xMin" class="form-control form-control-sm" placeholder="Min" onchange="saveConfig()"></div>
                         <div class="col-4"><input type="number" id="xMax" class="form-control form-control-sm" placeholder="Max" onchange="saveConfig()"></div>
                         <div class="col-4"><input type="number" id="xStep" class="form-control form-control-sm" placeholder="Step" onchange="saveConfig()"></div>
                     </div>
                     <div class="row g-1 mb-2">
-                        <div class="col-12"><strong class="axis-label">Y-Axis Range</strong></div>
+                        <div class="col-12"><strong class="axis-label">Y Range</strong></div>
                         <div class="col-4"><input type="number" id="yMin" class="form-control form-control-sm" placeholder="Min" onchange="saveConfig()"></div>
                         <div class="col-4"><input type="number" id="yMax" class="form-control form-control-sm" placeholder="Max" onchange="saveConfig()"></div>
                         <div class="col-4"><input type="number" id="yStep" class="form-control form-control-sm" placeholder="Step" onchange="saveConfig()"></div>
                     </div>
                     
                     <div class="border-top pt-2 mt-2">
-                        <label class="axis-label fw-bold text-danger">Spec Line (Y-Value)</label>
-                        <input type="number" id="specInput" class="form-control form-control-sm" placeholder="e.g. -20 (Black Dashed Line)" onchange="saveConfig()">
+                        <label class="axis-label fw-bold text-danger">Spec Line</label>
+                        <input type="number" id="specInput" class="form-control form-control-sm" placeholder="-20" onchange="saveConfig()">
                     </div>
 
                     <button class="btn btn-sm btn-success w-100 mt-3" id="plotBtn" disabled>Plot / Update</button>
@@ -207,15 +224,13 @@
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 400px;">
-                        <table class="table table-sm table-hover mb-0" id="fileTable" style="font-size: 0.8rem;">
-                            <thead class="table-light">
+                    <div class="series-table-container">
+                        <table class="table table-sm table-hover mb-0" id="fileTable" style="font-size: 0.9rem;">
+                            <thead class="table-light position-sticky top-0 start-0 border-bottom">
                                 <tr>
-                                    <th width="25"></th>
-                                    <th class="sortable-header" onclick="sortFiles()" title="Click to Sort">
-                                        Label <span id="sortIcon" style="font-size: 0.8rem; color: #666;">↕</span>
-                                    </th>
-                                    <th width="35">Clr</th>
+                                    <th width="30"></th>
+                                    <th class="sortable-header" onclick="sortFiles()">Label <span id="sortIcon">↕</span></th>
+                                    <th width="40">Clr</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -224,14 +239,24 @@
                 </div>
             </div>
         </div>
-
         <div id="h-resizer"></div>
 
         <div id="right-panel">
             <div id="chart-container">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <h6 class="mb-0 fw-bold ps-1" id="chart-view-title">Chart View</h6>
-                    <button class="btn btn-xs btn-outline-primary" onclick="exportView()">📷 Export PNG</button>
+                    
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            📷 Export PNG
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="exportView('chart')">Only Chart</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportView('table')">Only Table</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportView('full')">Full View (Chart+Table)</a></li>
+                        </ul>
+                    </div>
                 </div>
                 <div style="flex: 1; border: 1px solid #ddd; border-radius: 4px; padding: 5px; position: relative;">
                     <div id="plotDiv"></div>
@@ -245,12 +270,8 @@
                     <div class="card-body py-1 px-2">
                         <div class="row align-items-center gx-2">
                             <div class="col-auto"><strong class="small">Marker:</strong></div>
-                            <div class="col-auto">
-                                <input type="number" id="markerXInput" class="form-control form-control-sm" placeholder="X Val" style="width: 80px;" step="0.1">
-                            </div>
-                            <div class="col-auto">
-                                <select id="markerLineSelect" class="form-select form-select-sm" style="width: 150px;"></select>
-                            </div>
+                            <div class="col-auto"><input type="number" id="markerXInput" class="form-control form-control-sm" placeholder="X Val" style="width: 80px;" step="0.1"></div>
+                            <div class="col-auto"><select id="markerLineSelect" class="form-select form-select-sm" style="width: 150px;"></select></div>
                             <div class="col">
                                 <button class="btn btn-xs btn-dark" onclick="addMarker()">Add</button>
                                 <button class="btn btn-xs btn-outline-dark fw-bold" onclick="findMaxMarker()">Max</button>
@@ -262,10 +283,10 @@
                     </div>
                 </div>
 
-                <div class="card flex-grow-1" style="border: none; margin-bottom: 0; display: flex; flex-direction: column; overflow: hidden;">
-                    <div class="table-responsive bg-white border rounded">
-                        <table class="table table-sm mb-0" id="markerTable" style="font-size: 0.85rem;">
-                            <thead class="table-light">
+                <div class="card flex-grow-1" style="border: none; margin-bottom: 0; position: relative; overflow: hidden;">
+                    <div class="marker-scroll-container bg-white border rounded">
+                        <table class="table table-sm mb-0" id="markerTable" style="font-size: 0.9rem;">
+                            <thead class="table-light position-sticky top-0">
                                 <tr>
                                     <th>Name</th>
                                     <th>Line</th>
@@ -285,562 +306,510 @@
 </div>
 
 <script>
-    // --- Rainbow Colors ---
-    const rainbowColors = [
-        '#FF0000', '#FF7F00', '#FFD700', '#32CD32', '#008000', 
-        '#00CED1', '#0000FF', '#4B0082', '#800080', '#FF00FF', 
-        '#A52A2A', '#808080'
-    ];
+    const rainbowColors = ['#FF0000', '#FF7F00', '#FFD700', '#32CD32', '#008000', '#00CED1', '#0000FF', '#4B0082', '#800080', '#FF00FF', '#A52A2A', '#808080'];
+    let tabsData = {}; let activeTab = null; let tabCounter = 0;
     
-    let tabsData = {}; 
-    let activeTab = null;
-    let tabCounter = 0;
+    // Google Drive Config
+    let driveConfig = { apiKey: '', clientId: '', appId: '' };
+    let tokenClient, accessToken = null;
 
-    window.onload = function() { createNewTab(); };
+    window.onload = function() { 
+        createNewTab(); loadDriveConfig();
+        if(window.location.protocol === 'file:') {
+            document.getElementById('drive-status').innerHTML = '<span class="text-danger fw-bold">⚠ Warning: Google API requires http://localhost</span>';
+            document.getElementById('drivePickBtn').disabled = true;
+        }
+    };
+
+    window.exportView = (mode) => {
+        let elementId = 'right-panel'; 
+        let filenameSuffix = 'FullView';
+        if (mode === 'chart') { elementId = 'chart-container'; filenameSuffix = 'ChartOnly'; } 
+        else if (mode === 'table') { elementId = 'table-container'; filenameSuffix = 'TableOnly'; }
+
+        const element = document.getElementById(elementId);
+        html2canvas(element, { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `${tabsData[activeTab].name}_${filenameSuffix}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+    };
+
+    window.exportMergedCSV = () => {
+        if (!tabsData[activeTab] || tabsData[activeTab].files.length === 0) {
+            alert("No files to export."); return;
+        }
+        const files = tabsData[activeTab].files.filter(f => f.selected);
+        if (files.length === 0) { alert("No files selected."); return; }
+        const config = tabsData[activeTab].config;
+        const xColName = config.xCol;
+        let xMap = new Map();
+        files.forEach((file, fIdx) => {
+            const cols = Object.keys(file.data[0]);
+            if (!cols.includes(config.xCol) || !cols.includes(config.yCol)) return;
+            file.data.forEach(row => {
+                const x = row[config.xCol];
+                const y = row[config.yCol];
+                if (x !== undefined && y !== undefined && x !== null && y !== null && x !== "" && y !== "") {
+                    if (!xMap.has(x)) xMap.set(x, {});
+                    xMap.get(x)[fIdx] = y;
+                }
+            });
+        });
+        const sortedX = Array.from(xMap.keys()).sort((a, b) => a - b);
+        let csvContent = `"${xColName}"`; 
+        files.forEach(f => { csvContent += `,"${f.name.replace(/"/g, '""')}"`; });
+        csvContent += "\n";
+        sortedX.forEach(x => {
+            let rowStr = `${x}`;
+            const rowData = xMap.get(x);
+            for (let i = 0; i < files.length; i++) {
+                const val = rowData[i];
+                rowStr += `,${val !== undefined ? val : ''}`;
+            }
+            csvContent += rowStr + "\n";
+        });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `${tabsData[activeTab].name}_Merged_Wide.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // --- Core Functions ---
+    function toggleDriveConfig() {
+        const div = document.getElementById('drive-config');
+        div.style.display = (div.style.display === 'none' || div.style.display === '') ? 'block' : 'none';
+    }
+    function saveDriveConfig() {
+        driveConfig.apiKey = document.getElementById('gApiKey').value;
+        driveConfig.clientId = document.getElementById('gClientId').value;
+        driveConfig.appId = document.getElementById('gAppId').value;
+        localStorage.setItem('drive_cfg', JSON.stringify(driveConfig));
+        alert("Config saved! Refresh required.");
+        toggleDriveConfig(); loadGapi();
+    }
+    function loadDriveConfig() {
+        const saved = localStorage.getItem('drive_cfg');
+        if(saved) {
+            driveConfig = JSON.parse(saved);
+            document.getElementById('gApiKey').value = driveConfig.apiKey;
+            document.getElementById('gClientId').value = driveConfig.clientId;
+            document.getElementById('gAppId').value = driveConfig.appId;
+            if(driveConfig.apiKey) loadGapi();
+        }
+    }
+    function loadGapi() { if(driveConfig.apiKey) gapi.load('client:picker', initializePicker); }
+    async function initializePicker() {
+        await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: driveConfig.clientId, scope: 'https://www.googleapis.com/auth/drive.readonly', callback: '', 
+        });
+        document.getElementById('drive-status').innerText = "API Ready";
+    }
+    function handleAuthClick() {
+        if(!driveConfig.apiKey) { alert("Setup API first."); return; }
+        tokenClient.callback = async (resp) => {
+            if (resp.error) throw (resp);
+            accessToken = resp.access_token; createPicker();
+        };
+        tokenClient.requestAccessToken({prompt: ''});
+    }
+    function createPicker() {
+        const view = new google.picker.View(google.picker.ViewId.DOCS);
+        view.setMimeTypes("text/csv");
+        const picker = new google.picker.PickerBuilder()
+            .enableFeature(google.picker.Feature.NAV_HIDDEN).enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+            .setDeveloperKey(driveConfig.apiKey).setAppId(driveConfig.appId).setOAuthToken(accessToken)
+            .addView(view).setCallback(pickerCallback).build();
+        picker.setVisible(true);
+    }
+    async function pickerCallback(data) {
+        if (data.action === google.picker.Action.PICKED) {
+            const docs = data[google.picker.Document.DOCUMENTS];
+            document.getElementById('drive-status').innerText = `Loading ${docs.length}...`;
+            let files = [];
+            for(let doc of docs) {
+                try {
+                    const res = await gapi.client.drive.files.get({ fileId: doc[google.picker.Document.ID], alt: 'media' });
+                    files.push({ name: doc[google.picker.Document.NAME], content: res.body, importMode: 'drive' });
+                } catch(e) { console.error(e); }
+            }
+            handleDriveFiles(files);
+            document.getElementById('drive-status').innerText = "Done.";
+        }
+    }
+
+    function getSyncColor(name, idx) {
+        const keys = Object.keys(tabsData);
+        if (keys.length > 0) {
+            const match = tabsData[keys[0]].files.find(f => f.originalName === name || f.name === name.replace('.csv',''));
+            if (match) return match.color;
+        }
+        return rainbowColors[idx % rainbowColors.length];
+    }
+
+    function handleDriveFiles(filesObjList) {
+        const headerRow = (parseInt(document.getElementById('headerRowInput').value) || 1) - 1;
+        let filesList = tabsData[activeTab].files;
+        filesObjList.forEach(obj => {
+            const lines = obj.content.split(/\r\n|\n/);
+            if (lines.length <= headerRow) return;
+            Papa.parse(lines.slice(headerRow).join('\n'), {
+                header: true, dynamicTyping: true, skipEmptyLines: true,
+                complete: function(res) {
+                    if(res.meta.fields && res.meta.fields.length > 0) {
+                        let fName = obj.name.replace('.csv', '');
+                        let c = 1;
+                        while (filesList.some(f => f.name === fName)) { fName = `${obj.name.replace('.csv', '')} (${c})`; c++; }
+                        filesList.push({
+                            id: Date.now() + Math.random(), name: fName, originalName: obj.name,
+                            data: res.data, color: getSyncColor(obj.name, filesList.length), selected: true
+                        });
+                        finishProcessing(null);
+                    }
+                }
+            });
+        });
+    }
 
     function createNewTab() {
         tabCounter++;
         const tabId = `tab_${Date.now()}`;
-        const tabName = `Plot ${tabCounter}`;
+        let files = [], config = { fontSize: 14, legendFontSize: 12, headerRow: 1 };
         
-        let initialRawFiles = []; 
-        let initialConfig = { 
-            chartTitle: '', xLabel: '', yLabel: '', headerRow: 1, 
-            xMin: '', xMax: '', xStep: '', yMin: '', yMax: '', yStep: '', specValue: '', 
-            xCol: '', yCol: '' 
-        };
-
-        const tabKeys = Object.keys(tabsData);
-        if (tabKeys.length > 0) {
-            const firstTabId = tabKeys[0];
-            const sourceTab = tabsData[firstTabId];
-            initialRawFiles = [...sourceTab.rawFiles];
-            initialConfig = { ...sourceTab.config };
+        if (Object.keys(tabsData).length > 0) {
+            const src = tabsData[Object.keys(tabsData)[0]];
+            files = [...src.rawFiles]; config = { ...src.config };
         }
-
-        tabsData[tabId] = {
-            name: tabName,
-            rawFiles: initialRawFiles, 
-            files: [],
-            markers: [],
-            sortOrder: 'none',
-            config: initialConfig
-        };
-
-        const tabList = document.getElementById('tab-list');
-        const li = document.createElement('li');
-        li.className = 'nav-item';
-        li.id = `li-${tabId}`;
-        li.innerHTML = `<a class="nav-link" onclick="switchTab('${tabId}')" id="link-${tabId}"><span id="text-${tabId}">${tabName}</span><span class="tab-close-btn" onclick="closeTab(event, '${tabId}')">×</span></a>`;
-        tabList.appendChild(li);
+        tabsData[tabId] = { name: `Plot ${tabCounter}`, rawFiles: files, files: [], markers: [], sortOrder: 'none', config: config };
         
+        const li = document.createElement('li'); li.className = 'nav-item'; li.id = `li-${tabId}`;
+        li.innerHTML = `<a class="nav-link" onclick="switchTab('${tabId}')" id="link-${tabId}"><span id="text-${tabId}">${tabsData[tabId].name}</span><span class="tab-close-btn" onclick="closeTab(event, '${tabId}')">×</span></a>`;
+        document.getElementById('tab-list').appendChild(li);
         switchTab(tabId);
-        
-        if (initialRawFiles.length > 0) {
-            reparseCurrentFiles();
-        }
+        if (files.length > 0) reparseCurrentFiles();
     }
 
-    function closeTab(event, tabId) {
-        event.stopPropagation();
-        if (Object.keys(tabsData).length <= 1) { alert("Cannot close the last tab."); return; }
-        if (!confirm(`Delete ${tabsData[tabId].name}?`)) return;
-        delete tabsData[tabId];
-        document.getElementById(`li-${tabId}`).remove();
-        if (activeTab === tabId) switchTab(Object.keys(tabsData)[Object.keys(tabsData).length - 1]);
+    function closeTab(e, id) {
+        e.stopPropagation();
+        if (Object.keys(tabsData).length <= 1) { alert("Last tab."); return; }
+        if (!confirm("Delete tab?")) return;
+        delete tabsData[id]; document.getElementById(`li-${id}`).remove();
+        if (activeTab === id) switchTab(Object.keys(tabsData)[Object.keys(tabsData).length - 1]);
     }
 
-    function switchTab(tabId) {
+    function switchTab(id) {
         if (activeTab && tabsData[activeTab]) saveConfig();
-        activeTab = tabId;
-
+        activeTab = id;
         document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
-        const activeLink = document.getElementById(`link-${tabId}`);
-        if (activeLink) activeLink.classList.add('active');
-
-        document.getElementById('csvFileInput').value = '';
-        document.getElementById('folderInput').value = ''; 
-        
-        restoreConfig();
-        updateFileTable();
-        updateSortIcon();
-
+        document.getElementById(`link-${id}`).classList.add('active');
+        restoreConfig(); updateFileTable(); 
         if (tabsData[activeTab].files.length > 0) {
             document.getElementById('plotBtn').disabled = false;
-            document.getElementById('xColSelect').disabled = false;
-            document.getElementById('yColSelect').disabled = false;
+            document.getElementById('xColSelect').disabled = false; document.getElementById('yColSelect').disabled = false;
             document.getElementById('plotBtn').click();
-        } else {
-            clearUIForEmpty();
-        }
+        } else clearUIForEmpty();
         document.getElementById('chart-view-title').innerText = `Chart View (${tabsData[activeTab].name})`;
     }
 
-    function sortFiles() {
-        if (!tabsData[activeTab] || tabsData[activeTab].files.length === 0) return;
-        const currentSort = tabsData[activeTab].sortOrder;
-        let newSort = (currentSort === 'asc') ? 'desc' : 'asc';
-        tabsData[activeTab].sortOrder = newSort;
-        const files = tabsData[activeTab].files;
-        files.sort((a, b) => {
-            const nameA = a.name.toLowerCase();
-            const nameB = b.name.toLowerCase();
-            const comp = nameA.localeCompare(nameB, undefined, {numeric: true, sensitivity: 'base'});
-            return newSort === 'asc' ? comp : -comp;
-        });
-        updateSortIcon();
-        updateFileTable();
-        document.getElementById('plotBtn').click();
-    }
-
-    function updateSortIcon() {
-        const icon = document.getElementById('sortIcon');
-        if (!activeTab || !tabsData[activeTab]) return;
-        const order = tabsData[activeTab].sortOrder;
-        icon.innerText = (order === 'asc') ? '▲' : (order === 'desc') ? '▼' : '↕';
-    }
-
     function saveConfig() {
-        if (!activeTab || !tabsData[activeTab]) return;
-        const config = tabsData[activeTab].config;
-        config.chartTitle = document.getElementById('chartTitle').value;
-        config.xLabel = document.getElementById('xLabelInput').value; 
-        config.yLabel = document.getElementById('yLabelInput').value;
-        config.headerRow = document.getElementById('headerRowInput').value; 
-        config.xMin = document.getElementById('xMin').value;
-        config.xMax = document.getElementById('xMax').value;
-        config.xStep = document.getElementById('xStep').value;
-        config.yMin = document.getElementById('yMin').value;
-        config.yMax = document.getElementById('yMax').value;
-        config.yStep = document.getElementById('yStep').value;
-        config.specValue = document.getElementById('specInput').value; 
-        config.xCol = document.getElementById('xColSelect').value;
-        config.yCol = document.getElementById('yColSelect').value;
+        if (!activeTab) return;
+        const c = tabsData[activeTab].config;
+        c.chartTitle = document.getElementById('chartTitle').value;
+        c.fontSize = document.getElementById('chartFontSizeInput').value;
+        c.legendFontSize = document.getElementById('legendFontSizeInput').value;
+        c.xLabel = document.getElementById('xLabelInput').value; c.yLabel = document.getElementById('yLabelInput').value;
+        c.headerRow = document.getElementById('headerRowInput').value;
+        c.xMin = document.getElementById('xMin').value; c.xMax = document.getElementById('xMax').value; c.xStep = document.getElementById('xStep').value;
+        c.yMin = document.getElementById('yMin').value; c.yMax = document.getElementById('yMax').value; c.yStep = document.getElementById('yStep').value;
+        c.specValue = document.getElementById('specInput').value;
+        c.xCol = document.getElementById('xColSelect').value; c.yCol = document.getElementById('yColSelect').value;
     }
 
     function restoreConfig() {
-        const config = tabsData[activeTab].config;
-        document.getElementById('chartTitle').value = config.chartTitle || '';
-        document.getElementById('xLabelInput').value = config.xLabel || '';
-        document.getElementById('yLabelInput').value = config.yLabel || '';
-        document.getElementById('headerRowInput').value = config.headerRow || '1'; 
-        document.getElementById('xMin').value = config.xMin || '';
-        document.getElementById('xMax').value = config.xMax || '';
-        document.getElementById('xStep').value = config.xStep || '';
-        document.getElementById('yMin').value = config.yMin || '';
-        document.getElementById('yMax').value = config.yMax || '';
-        document.getElementById('yStep').value = config.yStep || '';
-        document.getElementById('specInput').value = config.specValue || ''; 
+        const c = tabsData[activeTab].config;
+        document.getElementById('chartTitle').value = c.chartTitle || '';
+        document.getElementById('chartFontSizeInput').value = c.fontSize || 14;
+        document.getElementById('legendFontSizeInput').value = c.legendFontSize || 12;
+        document.getElementById('xLabelInput').value = c.xLabel || ''; document.getElementById('yLabelInput').value = c.yLabel || '';
+        document.getElementById('headerRowInput').value = c.headerRow || 1;
+        document.getElementById('xMin').value = c.xMin || ''; document.getElementById('xMax').value = c.xMax || ''; document.getElementById('xStep').value = c.xStep || '';
+        document.getElementById('yMin').value = c.yMin || ''; document.getElementById('yMax').value = c.yMax || ''; document.getElementById('yStep').value = c.yStep || '';
+        document.getElementById('specInput').value = c.specValue || '';
         
+        const xSel = document.getElementById('xColSelect'); const ySel = document.getElementById('yColSelect');
+        xSel.innerHTML = ''; ySel.innerHTML = '';
         const files = tabsData[activeTab].files;
-        const xSelect = document.getElementById('xColSelect');
-        const ySelect = document.getElementById('yColSelect');
-        xSelect.innerHTML = ''; ySelect.innerHTML = '';
-
         if (files.length > 0) {
-            const columns = Object.keys(files[0].data[0]);
-            columns.forEach(col => { xSelect.add(new Option(col, col)); ySelect.add(new Option(col, col)); });
-            if (config.xCol) xSelect.value = config.xCol;
-            if (config.yCol) ySelect.value = config.yCol;
+            Object.keys(files[0].data[0]).forEach(k => { xSel.add(new Option(k,k)); ySel.add(new Option(k,k)); });
+            if (c.xCol) xSel.value = c.xCol; if (c.yCol) ySel.value = c.yCol;
         }
         document.getElementById('fileCount').innerText = `${files.length} files`;
     }
 
     function clearUIForEmpty() {
         document.getElementById('fileCount').innerText = "0 files";
-        document.getElementById('xColSelect').innerHTML = '';
-        document.getElementById('yColSelect').innerHTML = '';
-        document.getElementById('xColSelect').disabled = true;
-        document.getElementById('yColSelect').disabled = true;
+        document.getElementById('xColSelect').innerHTML = ''; document.getElementById('yColSelect').innerHTML = '';
+        document.getElementById('xColSelect').disabled = true; document.getElementById('yColSelect').disabled = true;
         document.getElementById('plotBtn').disabled = true;
-        document.getElementById('fileTable').getElementsByTagName('tbody')[0].innerHTML = '';
-        document.getElementById('plotDiv').innerHTML = '';
-        document.getElementById('markerTable').getElementsByTagName('tbody')[0].innerHTML = '';
-        document.getElementById('markerLineSelect').innerHTML = '';
+        document.querySelector('#fileTable tbody').innerHTML = ''; document.getElementById('plotDiv').innerHTML = '';
+        document.querySelector('#markerTable tbody').innerHTML = ''; document.getElementById('markerLineSelect').innerHTML = '';
     }
 
-    const hResizer = document.getElementById('h-resizer');
-    const leftPanel = document.getElementById('left-panel');
-    const vResizer = document.getElementById('v-resizer');
-    const chartContainer = document.getElementById('chart-container');
-    const rightPanel = document.getElementById('right-panel');
-    let isResizingH = false, isResizingV = false;
+    // --- Resizers ---
+    const hRes = document.getElementById('h-resizer'); const leftP = document.getElementById('left-panel');
+    const vRes = document.getElementById('v-resizer'); const rightP = document.getElementById('right-panel'); const chartC = document.getElementById('chart-container');
+    let isResH = false, isResV = false;
 
-    hResizer.addEventListener('mousedown', () => { isResizingH = true; hResizer.classList.add('resizing'); document.body.classList.add('no-select'); document.body.style.cursor = 'col-resize'; });
-    vResizer.addEventListener('mousedown', () => { isResizingV = true; vResizer.classList.add('resizing'); document.body.classList.add('no-select'); document.body.style.cursor = 'row-resize'; });
-
+    hRes.addEventListener('mousedown', () => { isResH = true; document.body.style.cursor = 'col-resize'; });
+    vRes.addEventListener('mousedown', () => { isResV = true; document.body.style.cursor = 'row-resize'; });
     window.addEventListener('mousemove', (e) => {
-        if (isResizingH) {
-            const newWidth = Math.max(200, Math.min(1600, e.clientX));
-            leftPanel.style.width = `${newWidth}px`;
-            Plotly.Plots.resize(document.getElementById('plotDiv'));
-        }
-        if (isResizingV) {
-            const rect = rightPanel.getBoundingClientRect();
-            const relativeY = e.clientY - rect.top;
-            const percentage = (relativeY / rect.height) * 100;
-            if (percentage > 20 && percentage < 80) {
-                chartContainer.style.height = `${percentage}%`;
-                Plotly.Plots.resize(document.getElementById('plotDiv'));
-            }
+        if (isResH) { leftP.style.width = `${Math.max(250, Math.min(1600, e.clientX))}px`; Plotly.Plots.resize('plotDiv'); }
+        if (isResV) { 
+            const rect = rightP.getBoundingClientRect();
+            const pct = ((e.clientY - rect.top) / rect.height) * 100;
+            if(pct > 20 && pct < 80) { chartC.style.height = `${pct}%`; Plotly.Plots.resize('plotDiv'); }
         }
     });
+    window.addEventListener('mouseup', () => { isResH = false; isResV = false; document.body.style.cursor = 'default'; });
 
-    window.addEventListener('mouseup', () => {
-        if (isResizingH || isResizingV) {
-            isResizingH = false; isResizingV = false;
-            hResizer.classList.remove('resizing'); vResizer.classList.remove('resizing');
-            document.body.classList.remove('no-select'); document.body.style.cursor = 'default';
-            Plotly.Plots.resize(document.getElementById('plotDiv'));
-        }
-    });
+    // --- File Handling ---
+    document.getElementById('csvFileInput').addEventListener('change', (e) => handleNewFiles(e.target.files, 'file'));
+    document.getElementById('folderInput').addEventListener('change', (e) => handleNewFiles(e.target.files, 'folder'));
 
-    window.exportView = () => {
-        const element = document.getElementById('right-panel');
-        html2canvas(element, { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
-            const link = document.createElement('a');
-            link.download = `${tabsData[activeTab].name}_Export.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        });
-    };
-
-    function hexToRgba(hex, alpha) {
-        if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
-            let c = hex.substring(1).split('');
-            if(c.length === 3) c = [c[0], c[0], c[1], c[1], c[2], c[2]];
-            c = '0x' + c.join('');
-            return 'rgba(' + [(c>>16)&255, (c>>8)&255, c&255].join(',') + ',' + alpha + ')';
-        }
-        return 'rgba(255,255,255,' + alpha + ')';
-    }
-
-    // --- FILE INPUT HANDLERS ---
-    document.getElementById('csvFileInput').addEventListener('change', function(e) { handleNewFiles(e.target.files, 'file'); });
-    document.getElementById('folderInput').addEventListener('change', function(e) { handleNewFiles(e.target.files, 'folder'); });
-
-    function handleNewFiles(fileList, mode) {
-        if (!fileList || fileList.length === 0) return;
-        const csvFiles = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.csv'));
-        if (csvFiles.length === 0) { alert("No CSV files found."); return; }
-        csvFiles.forEach(f => { f.importMode = mode; });
-        tabsData[activeTab].rawFiles = [...tabsData[activeTab].rawFiles, ...csvFiles];
-        processFiles(csvFiles);
+    function handleNewFiles(list, mode) {
+        if(!list.length) return;
+        const csvs = Array.from(list).filter(f => f.name.toLowerCase().endsWith('.csv'));
+        if(!csvs.length) { alert("No CSVs."); return; }
+        csvs.forEach(f => f.importMode = mode);
+        tabsData[activeTab].rawFiles = [...tabsData[activeTab].rawFiles, ...csvs];
+        processFiles(csvs);
     }
 
     function reparseCurrentFiles() {
-        if (!activeTab || !tabsData[activeTab]) return;
-        const rawFiles = tabsData[activeTab].rawFiles;
-        if (rawFiles.length === 0) return;
-        tabsData[activeTab].files = [];
-        tabsData[activeTab].markers = [];
-        processFiles(rawFiles, true);
+        if (!tabsData[activeTab].rawFiles.length) return;
+        tabsData[activeTab].files = []; tabsData[activeTab].markers = [];
+        processFiles(tabsData[activeTab].rawFiles, true);
     }
 
-    function processFiles(filesToProcess, isReparse = false) {
-        let filesProcessed = 0;
-        const headerRowIndex = (parseInt(document.getElementById('headerRowInput').value) || 1) - 1;
-        let filesList = isReparse ? [] : tabsData[activeTab].files; 
+    function processFiles(list, isReparse=false) {
+        let processed = 0;
+        const headerRow = (parseInt(document.getElementById('headerRowInput').value) || 1) - 1;
+        let targetList = isReparse ? [] : tabsData[activeTab].files;
 
-        filesToProcess.forEach((file) => {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const content = e.target.result;
-                const lines = content.split(/\r\n|\n/);
-                
-                if (lines.length <= headerRowIndex) {
-                    filesProcessed++;
-                    return;
-                }
-
-                const cleanedContent = lines.slice(headerRowIndex).join('\n');
-
-                Papa.parse(cleanedContent, {
-                    header: true, dynamicTyping: true, skipEmptyLines: true,
-                    complete: function(results) {
-                        if(results.meta && results.meta.fields && results.meta.fields.length > 0) {
-                            let displayName = "";
-                            if (file.importMode === 'folder' && file.webkitRelativePath) {
-                                displayName = file.webkitRelativePath.replace('.csv', '');
-                            } else {
-                                displayName = file.name.replace('.csv', '');
+        list.forEach(file => {
+            const r = new FileReader();
+            r.onload = (e) => {
+                const lines = e.target.result.split(/\r\n|\n/);
+                if(lines.length > headerRow) {
+                    Papa.parse(lines.slice(headerRow).join('\n'), {
+                        header: true, dynamicTyping: true, skipEmptyLines: true,
+                        complete: (res) => {
+                            if(res.meta.fields && res.meta.fields.length) {
+                                let name = (file.importMode === 'folder' && file.webkitRelativePath) ? file.webkitRelativePath.replace('.csv','') : file.name.replace('.csv','');
+                                let final = name, c = 1;
+                                while(targetList.some(f => f.name === final)) { final = `${name} (${c})`; c++; }
+                                targetList.push({
+                                    id: Date.now()+Math.random(), name: final, originalName: file.name,
+                                    data: res.data, color: getSyncColor(file.name, targetList.length), selected: true
+                                });
                             }
-
-                            let finalName = displayName;
-                            let counter = 1;
-                            while (filesList.some(f => f.name === finalName)) {
-                                finalName = `${displayName} (${counter})`; counter++;
-                            }
-                            
-                            filesList.push({
-                                id: Date.now() + Math.random(), name: finalName, originalName: file.name,
-                                data: results.data, 
-                                color: rainbowColors[filesList.length % rainbowColors.length], 
-                                selected: true
-                            });
+                            processed++;
+                            if(processed === list.length) finishProcessing(isReparse ? targetList : null);
                         }
-                        
-                        filesProcessed++;
-                        if (filesProcessed === filesToProcess.length) {
-                            if (isReparse) tabsData[activeTab].files = filesList;
-                            
-                            if (document.getElementById('xColSelect').options.length === 0 || isReparse) {
-                                const xSelect = document.getElementById('xColSelect');
-                                const ySelect = document.getElementById('yColSelect');
-                                xSelect.innerHTML = ''; ySelect.innerHTML = '';
-                                
-                                if (filesList.length > 0 && filesList[0].data.length > 0) {
-                                    const columns = Object.keys(filesList[0].data[0]);
-                                    columns.forEach(col => { xSelect.add(new Option(col, col)); ySelect.add(new Option(col, col)); });
-                                    
-                                    const savedX = tabsData[activeTab].config.xCol;
-                                    const savedY = tabsData[activeTab].config.yCol;
-                                    xSelect.value = (savedX && columns.includes(savedX)) ? savedX : (columns.includes('SG_power') ? 'SG_power' : columns[0]);
-                                    ySelect.value = (savedY && columns.includes(savedY)) ? savedY : (columns.includes('Gain') ? 'Gain' : (columns[1] || columns[0]));
-                                }
-                                saveConfig();
-                            }
-                            
-                            document.getElementById('xColSelect').disabled = false;
-                            document.getElementById('yColSelect').disabled = false;
-                            document.getElementById('plotBtn').disabled = false;
-                            document.getElementById('fileCount').innerText = `${filesList.length} files`;
-                            
-                            updateFileTable();
-                            document.getElementById('plotBtn').click();
-                        }
-                    }
-                });
+                    });
+                } else { processed++; if(processed === list.length) finishProcessing(isReparse ? targetList : null); }
             };
-            reader.readAsText(file);
+            r.readAsText(file);
         });
     }
 
+    function finishProcessing(newList) {
+        if(newList) tabsData[activeTab].files = newList;
+        const list = tabsData[activeTab].files;
+        if(document.getElementById('xColSelect').options.length === 0 || newList) {
+            const xS = document.getElementById('xColSelect'), yS = document.getElementById('yColSelect');
+            xS.innerHTML = ''; yS.innerHTML = '';
+            if(list.length && list[0].data.length) {
+                Object.keys(list[0].data[0]).forEach(k => { xS.add(new Option(k,k)); yS.add(new Option(k,k)); });
+                const cfg = tabsData[activeTab].config;
+                xS.value = (cfg.xCol && Object.keys(list[0].data[0]).includes(cfg.xCol)) ? cfg.xCol : Object.keys(list[0].data[0])[0];
+                yS.value = (cfg.yCol && Object.keys(list[0].data[0]).includes(cfg.yCol)) ? cfg.yCol : (Object.keys(list[0].data[0])[1] || Object.keys(list[0].data[0])[0]);
+            }
+            saveConfig();
+        }
+        document.getElementById('xColSelect').disabled = false; document.getElementById('yColSelect').disabled = false;
+        document.getElementById('plotBtn').disabled = false;
+        document.getElementById('fileCount').innerText = `${list.length} files`;
+        updateFileTable(); document.getElementById('plotBtn').click();
+    }
+
     function clearFiles() {
-        tabsData[activeTab].files = []; 
-        tabsData[activeTab].rawFiles = []; 
-        tabsData[activeTab].markers = []; 
-        tabsData[activeTab].config = {}; 
-        document.getElementById('csvFileInput').value = '';
-        document.getElementById('folderInput').value = ''; 
+        tabsData[activeTab].files = []; tabsData[activeTab].rawFiles = []; tabsData[activeTab].markers = []; tabsData[activeTab].config = {};
+        document.getElementById('csvFileInput').value = ''; document.getElementById('folderInput').value = '';
         clearUIForEmpty();
     }
 
     function updateFileTable() {
-        const files = tabsData[activeTab].files;
-        const tbody = document.getElementById('fileTable').getElementsByTagName('tbody')[0];
-        tbody.innerHTML = '';
-        files.forEach((file, idx) => {
+        const tbody = document.querySelector('#fileTable tbody'); tbody.innerHTML = '';
+        tabsData[activeTab].files.forEach((f, i) => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><input type="checkbox" class="form-check-input" ${file.selected ? 'checked' : ''} onchange="toggleFile(${idx}, this.checked)"></td>
-                <td><input type="text" class="form-control form-control-sm border-0 bg-transparent p-0" value="${file.name}" onchange="updateLabel(${idx}, this.value)"></td>
-                <td><input type="color" class="form-control form-control-sm form-control-color p-0" value="${file.color}" onchange="updateColor(${idx}, this.value)"></td>
-            `;
+            tr.innerHTML = `<td><input type="checkbox" class="form-check-input" ${f.selected?'checked':''} onchange="toggleFile(${i},this.checked)"></td>
+                            <td><input type="text" class="form-control form-control-sm border-0 bg-transparent p-0" value="${f.name}" onchange="updateLabel(${i},this.value)"></td>
+                            <td><input type="color" class="form-control form-control-sm form-control-color p-0" value="${f.color}" onchange="updateColor(${i},this.value)"></td>`;
             tbody.appendChild(tr);
         });
     }
 
-    window.toggleFile = (idx, checked) => { tabsData[activeTab].files[idx].selected = checked; };
-    window.updateLabel = (idx, val) => { 
-        const file = tabsData[activeTab].files[idx]; file.name = val;
-        tabsData[activeTab].markers.forEach(m => { if(m.fileId === file.id) m.lineName = val; });
+    window.toggleFile = (i, v) => { tabsData[activeTab].files[i].selected = v; };
+    window.updateLabel = (i, v) => { 
+        tabsData[activeTab].files[i].name = v; 
+        tabsData[activeTab].markers.forEach(m => { if(m.fileId === tabsData[activeTab].files[i].id) m.lineName = v; });
         updateLineSelect(); document.getElementById('plotBtn').click(); 
     };
-    window.updateColor = (idx, val) => { tabsData[activeTab].files[idx].color = val; document.getElementById('plotBtn').click(); };
-    window.toggleAllFiles = (status) => {
-        tabsData[activeTab].files.forEach(f => f.selected = status);
-        updateFileTable(); document.getElementById('plotBtn').click();
+    window.updateColor = (i, v) => { tabsData[activeTab].files[i].color = v; document.getElementById('plotBtn').click(); };
+    window.toggleAllFiles = (v) => { tabsData[activeTab].files.forEach(f => f.selected = v); updateFileTable(); document.getElementById('plotBtn').click(); };
+    window.sortFiles = () => {
+        const o = tabsData[activeTab].sortOrder === 'asc' ? 'desc' : 'asc'; tabsData[activeTab].sortOrder = o;
+        tabsData[activeTab].files.sort((a,b) => o==='asc' ? a.name.localeCompare(b.name,undefined,{numeric:true}) : b.name.localeCompare(a.name,undefined,{numeric:true}));
+        document.getElementById('sortIcon').innerText = o==='asc' ? '▲' : '▼'; updateFileTable(); document.getElementById('plotBtn').click();
     };
 
-    window.resetMarkersAndPlot = () => {
-        tabsData[activeTab].markers = []; document.getElementById('plotBtn').click();
-    };
-
-    window.autoScale = () => {
-        ['xMin', 'xMax', 'xStep', 'yMin', 'yMax', 'yStep'].forEach(id => document.getElementById(id).value = '');
-        saveConfig(); document.getElementById('plotBtn').click();
-    };
-
-    document.getElementById('plotBtn').addEventListener('click', function() {
+    document.getElementById('plotBtn').addEventListener('click', () => {
         const files = tabsData[activeTab].files;
+        const xc = document.getElementById('xColSelect').value, yc = document.getElementById('yColSelect').value;
+        const fs = parseInt(document.getElementById('chartFontSizeInput').value) || 14;
+        const lfs = parseInt(document.getElementById('legendFontSizeInput').value) || 12; 
         
-        const xCol = document.getElementById('xColSelect').value;
-        const yCol = document.getElementById('yColSelect').value;
-        const chartTitleVal = document.getElementById('chartTitle').value;
-        
-        const plotTitle = chartTitleVal ? chartTitleVal : `${yCol} vs ${xCol}`;
-        
-        const xLabelVal = document.getElementById('xLabelInput').value;
-        const yLabelVal = document.getElementById('yLabelInput').value;
-        const specVal = parseFloat(document.getElementById('specInput').value);
-
-        const getVal = (id) => { const v = document.getElementById(id).value; return v === "" ? null : parseFloat(v); };
-        const xMin = getVal('xMin'), xMax = getVal('xMax'), xStep = getVal('xStep');
-        const yMin = getVal('yMin'), yMax = getVal('yMax'), yStep = getVal('yStep');
-
-        const traces = [];
-        files.forEach(file => {
-            if (!file.selected) return;
-            const xData = [], yData = [];
-            file.data.forEach(row => {
-                const xv = row[xCol], yv = row[yCol];
-                if (typeof xv === 'number' && typeof yv === 'number') { xData.push(xv); yData.push(yv); }
-            });
-            const combined = xData.map((x, i) => ({ x, y: yData[i] }));
-            combined.sort((a, b) => a.x - b.x);
-            file.cacheX = combined.map(d => d.x); file.cacheY = combined.map(d => d.y);
-            traces.push({
-                x: file.cacheX, y: file.cacheY, mode: 'lines+markers', type: 'scatter',
-                name: file.name, line: { color: file.color, width: 2 }, marker: { size: 6 }, customdata: file.id
-            });
+        let traces = [], shapes = [];
+        files.forEach(f => {
+            if(!f.selected) return;
+            let xd = [], yd = [];
+            f.data.forEach(r => { if(typeof r[xc]==='number' && typeof r[yc]==='number') { xd.push(r[xc]); yd.push(r[yc]); } });
+            let combo = xd.map((x,i) => ({x, y:yd[i]})).sort((a,b) => a.x - b.x);
+            f.cacheX = combo.map(d=>d.x); f.cacheY = combo.map(d=>d.y);
+            traces.push({ x: f.cacheX, y: f.cacheY, mode: 'lines+markers', type: 'scatter', name: f.name, line: {color: f.color, width: 2}, marker: {size: 6}, customdata: f.id });
         });
 
-        const shapes = [];
-        if (!isNaN(specVal)) {
-            shapes.push({
-                type: 'line', xref: 'paper', x0: 0, x1: 1,
-                y0: specVal, y1: specVal,
-                line: { color: 'black', width: 2, dash: 'dash' }
-            });
-        }
+        const sv = parseFloat(document.getElementById('specInput').value);
+        if(!isNaN(sv)) shapes.push({ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: sv, y1: sv, line: {color: 'black', width: 2, dash: 'dash'} });
 
         const layout = {
-            title: { text: plotTitle, font: { size: 18 } },
-            xaxis: { title: xLabelVal || xCol, showgrid: true, zeroline: false, range: (xMin!==null && xMax!==null)?[xMin,xMax]:null, dtick: xStep },
-            yaxis: { title: yLabelVal || yCol, showgrid: true, zeroline: false, range: (yMin!==null && yMax!==null)?[yMin,yMax]:null, dtick: yStep },
-            hovermode: 'closest',
-            shapes: shapes, 
-            legend: { bgcolor: 'rgba(255,255,255,0.8)', bordercolor: '#E2E2E2', borderwidth: 1 },
-            margin: { t: 40, r: 20, l: 50, b: 40 }
+            title: { text: document.getElementById('chartTitle').value || `${yc} vs ${xc}`, font: {size: Math.round(fs*1.3)} },
+            xaxis: { 
+                title: {text: document.getElementById('xLabelInput').value||xc, font:{size:fs}}, 
+                tickfont:{size:fs-2}, range: getRange('x'), dtick: getVal('xStep'),
+                zeroline: false, zerolinecolor: 'rgba(0,0,0,0)', zerolinewidth: 0,
+                showline: true, mirror: true
+            },
+            yaxis: { 
+                title: {text: document.getElementById('yLabelInput').value||yc, font:{size:fs}}, 
+                tickfont:{size:fs-2}, range: getRange('y'), dtick: getVal('yStep'),
+                zeroline: false, zerolinecolor: 'rgba(0,0,0,0)', zerolinewidth: 0,
+                showline: true, mirror: true
+            },
+            hovermode: 'closest', shapes: shapes,
+            legend: { bgcolor: 'rgba(255,255,255,0.8)', borderwidth: 0, font: {size: lfs} }, // borderwidth: 0 removes the frame
+            margin: { t: 50, r: 20, l: 60, b: 50 }
         };
-        const plotConfig = { responsive: true, editable: true, displayModeBar: true, displaylogo: false };
-
         updateLineSelect();
-        Plotly.newPlot('plotDiv', traces, layout, plotConfig).then(() => {
-            const currentMarkers = tabsData[activeTab].markers;
-            document.getElementById('markerTable').getElementsByTagName('tbody')[0].innerHTML = '';
-            currentMarkers.forEach(m => renderMarker(m));
-            document.getElementById('plotDiv').on('plotly_click', function(data){
-                const pt = data.points[0];
-                document.getElementById('markerXInput').value = pt.x;
-                const fileId = pt.data.customdata;
-                const file = files.find(f => f.id === fileId);
-                const lineName = file ? file.name : pt.data.name;
-                addMarkerData(pt.x, pt.y, `M${currentMarkers.length+1}`, lineName, fileId, "Clicked");
+        Plotly.newPlot('plotDiv', traces, layout, {responsive: true, editable: true, displaylogo: false}).then(() => {
+            const markers = tabsData[activeTab].markers;
+            document.querySelector('#markerTable tbody').innerHTML = '';
+            markers.forEach(m => renderMarker(m));
+            document.getElementById('plotDiv').on('plotly_click', (d) => {
+                const pt = d.points[0]; document.getElementById('markerXInput').value = pt.x;
+                const f = files.find(x => x.id === pt.data.customdata);
+                addMarkerData(pt.x, pt.y, `M${markers.length+1}`, f ? f.name : pt.data.name, f?f.id:null, "Clicked");
             });
         });
     });
 
+    function getVal(id) { const v = document.getElementById(id).value; return v==="" ? null : parseFloat(v); }
+    function getRange(axis) { const min = getVal(`${axis}Min`), max = getVal(`${axis}Max`); return (min!==null && max!==null) ? [min, max] : null; }
     function updateLineSelect() {
-        const select = document.getElementById('markerLineSelect');
-        const files = tabsData[activeTab].files;
-        select.innerHTML = '';
-        files.forEach((file, idx) => { if (file.selected) select.add(new Option(file.name, idx)); });
+        const sel = document.getElementById('markerLineSelect'); sel.innerHTML = '';
+        tabsData[activeTab].files.forEach((f, i) => { if(f.selected) sel.add(new Option(f.name, i)); });
     }
 
-    function interpolate(targetX, xArr, yArr) {
-        if (targetX < xArr[0] || targetX > xArr[xArr.length - 1]) return null;
-        let i = 0;
-        while (i < xArr.length - 1 && xArr[i+1] < targetX) i++;
-        const x0 = xArr[i], x1 = xArr[i+1];
-        const y0 = yArr[i], y1 = yArr[i+1];
-        if (x1 - x0 === 0) return y0;
-        return y0 + (targetX - x0) * (y1 - y0) / (x1 - x0);
+    // --- Markers ---
+    function interpolate(tx, xa, ya) {
+        if(tx < xa[0] || tx > xa[xa.length-1]) return null;
+        let i = xa.findIndex(x => x >= tx);
+        if(i === 0) return ya[0];
+        const x0 = xa[i-1], x1 = xa[i], y0 = ya[i-1], y1 = ya[i];
+        return y0 + (tx - x0) * (y1 - y0) / (x1 - x0);
     }
-
+    
     window.addMarker = () => {
-        const xVal = parseFloat(document.getElementById('markerXInput').value);
-        const fIdx = document.getElementById('markerLineSelect').value;
-        const files = tabsData[activeTab].files;
-        if (!fIdx) { alert("Select a line"); return; }
-        const file = files[fIdx];
-        if (!file.cacheX) { alert("Plot first"); return; }
-        const yVal = interpolate(xVal, file.cacheX, file.cacheY);
-        if (yVal === null) { alert("X out of range"); return; }
-        addMarkerData(xVal, yVal, `M${tabsData[activeTab].markers.length+1}`, file.name, file.id);
+        const x = parseFloat(document.getElementById('markerXInput').value);
+        const idx = document.getElementById('markerLineSelect').value;
+        if(!idx) { alert("Select line"); return; }
+        const f = tabsData[activeTab].files[idx];
+        if(!f.cacheX) { alert("Plot first"); return; }
+        const y = interpolate(x, f.cacheX, f.cacheY);
+        if(y === null) { alert("X out of range"); return; }
+        addMarkerData(x, y, `M${tabsData[activeTab].markers.length+1}`, f.name, f.id);
     };
 
-    window.findMaxMarker = () => {
-        const fIdx = document.getElementById('markerLineSelect').value;
-        const files = tabsData[activeTab].files;
-        if (!fIdx) { alert("Select a line"); return; }
-        const file = files[fIdx];
-        if (!file.cacheX) { alert("Plot first"); return; }
-        const maxY = Math.max(...file.cacheY);
-        const maxIdx = file.cacheY.indexOf(maxY);
-        addMarkerData(file.cacheX[maxIdx], maxY, `Max`, file.name, file.id, "Max Value");
-    };
-
-    window.findMinMarker = () => {
-        const fIdx = document.getElementById('markerLineSelect').value;
-        const files = tabsData[activeTab].files;
-        if (!fIdx) { alert("Select a line"); return; }
-        const file = files[fIdx];
-        if (!file.cacheX) { alert("Plot first"); return; }
-        const minY = Math.min(...file.cacheY);
-        const minIdx = file.cacheY.indexOf(minY);
-        addMarkerData(file.cacheX[minIdx], minY, `Min`, file.name, file.id, "Min Value");
-    };
-
+    window.findMaxMarker = () => { markerOp('max'); }; window.findMinMarker = () => { markerOp('min'); };
+    function markerOp(type) {
+        const idx = document.getElementById('markerLineSelect').value;
+        if(!idx) return; const f = tabsData[activeTab].files[idx];
+        if(!f.cacheX) return;
+        const val = type === 'max' ? Math.max(...f.cacheY) : Math.min(...f.cacheY);
+        const i = f.cacheY.indexOf(val);
+        addMarkerData(f.cacheX[i], val, type==='max'?'Max':'Min', f.name, f.id, `${type} value`);
+    }
+    
     window.findOP1dB = () => {
-        const markers = tabsData[activeTab].markers;
-        if (markers.length === 0) { alert("Add reference marker first"); return; }
-        const ref = markers[markers.length - 1];
-        const file = tabsData[activeTab].files.find(f => f.id === ref.fileId);
-        if (!file) { alert("Reference line not found"); return; }
-        const targetY = ref.y - 1.0;
-        const xArr = file.cacheX;
-        let startI = xArr.findIndex(x => x >= ref.x);
-        let foundX = null;
-        for (let i = startI; i < xArr.length - 1; i++) {
-            const y1 = file.cacheY[i], y2 = file.cacheY[i+1];
-            if ((y1 - targetY) * (y2 - targetY) <= 0) {
-                foundX = xArr[i] + (targetY - y1) * (xArr[i+1] - xArr[i]) / (y2 - y1); break;
+        const ms = tabsData[activeTab].markers;
+        if(!ms.length) { alert("Add ref marker"); return; }
+        const ref = ms[ms.length-1], f = tabsData[activeTab].files.find(x => x.id === ref.fileId);
+        if(!f) return;
+        const ty = ref.y - 1.0;
+        let start = f.cacheX.findIndex(x => x >= ref.x), foundX = null;
+        for(let i=start; i<f.cacheX.length-1; i++) {
+            if((f.cacheY[i]-ty)*(f.cacheY[i+1]-ty) <= 0) {
+                foundX = f.cacheX[i] + (ty - f.cacheY[i]) * (f.cacheX[i+1] - f.cacheX[i]) / (f.cacheY[i+1] - f.cacheY[i]); break;
             }
         }
-        if (foundX !== null) addMarkerData(foundX, targetY, "OP1dB", file.name, file.id, "1dB Drop");
-        else alert("OP1dB not found");
+        if(foundX!==null) addMarkerData(foundX, ty, "OP1dB", f.name, f.id, "1dB Drop"); else alert("Not found");
     };
 
-    function addMarkerData(x, y, name, lineName, fileId, note="") {
-        const mObj = {id: Date.now(), x, y, name, lineName, fileId, note};
-        tabsData[activeTab].markers.push(mObj);
-        renderMarker(mObj);
+    function addMarkerData(x, y, name, line, fid, note="") {
+        const m = {id: Date.now(), x, y, name, lineName: line, fileId: fid, note};
+        tabsData[activeTab].markers.push(m); renderMarker(m);
     }
 
-    function renderMarker(mObj) {
+    function renderMarker(m) {
         Plotly.addTraces('plotDiv', {
-            x: [mObj.x], y: [mObj.y], mode: 'markers+text', type: 'scatter',
-            marker: { color: 'red', size: 10, symbol: 'circle-open', line: {width: 2} },
-            text: [`${mObj.name}<br>${mObj.y.toFixed(2)}`], textposition: 'top center', showlegend: false, hoverinfo: 'text'
+            x: [m.x], y: [m.y], mode: 'markers+text', type: 'scatter',
+            marker: {color: 'red', size: 10, symbol: 'circle-open', line: {width: 2}},
+            text: [`${m.name}<br>${m.y.toFixed(2)}`], textposition: 'top center', showlegend: false, hoverinfo: 'text'
         });
-        
-        const layout = document.getElementById('plotDiv').layout;
-        const currentShapes = layout.shapes || [];
-        const newShapes = currentShapes.concat([
-            { type: 'line', x0: mObj.x, y0: layout.yaxis.range?layout.yaxis.range[0]:0, x1: mObj.x, y1: mObj.y, line: {color:'red', dash:'dot', width:1} },
-            { type: 'line', x0: layout.xaxis.range?layout.xaxis.range[0]:0, y0: mObj.y, x1: mObj.x, y1: mObj.y, line: {color:'red', dash:'dot', width:1} }
+        const l = document.getElementById('plotDiv').layout;
+        const ns = (l.shapes||[]).concat([
+            {type: 'line', x0: m.x, y0: l.yaxis.range?l.yaxis.range[0]:0, x1: m.x, y1: m.y, line:{color:'red', dash:'dot', width:1}},
+            {type: 'line', x0: l.xaxis.range?l.xaxis.range[0]:0, y0: m.y, x1: m.x, y1: m.y, line:{color:'red', dash:'dot', width:1}}
         ]);
-        Plotly.relayout('plotDiv', { shapes: newShapes });
+        Plotly.relayout('plotDiv', {shapes: ns});
 
-        const file = tabsData[activeTab].files.find(f => f.id === mObj.fileId);
-        const bgColor = file ? hexToRgba(file.color, 0.2) : 'rgba(255,255,255,1)';
-        const tbody = document.getElementById('markerTable').getElementsByTagName('tbody')[0];
+        const f = tabsData[activeTab].files.find(x => x.id === m.fileId);
         const tr = document.createElement('tr');
-        tr.style.backgroundColor = bgColor;
-        tr.innerHTML = `<td>${mObj.name}</td><td>${mObj.lineName}</td><td>${mObj.x.toFixed(2)}</td><td>${mObj.y.toFixed(2)}</td><td>${mObj.note}</td><td><button class="btn btn-xs btn-danger" onclick="removeMarker(${mObj.id})">Del</button></td>`;
-        tbody.appendChild(tr);
+        if(f) tr.style.backgroundColor = f.color + '33'; 
+        tr.innerHTML = `<td>${m.name}</td><td>${m.lineName}</td><td>${m.x.toFixed(2)}</td><td>${m.y.toFixed(2)}</td><td>${m.note}</td><td><button class="btn btn-xs btn-danger" onclick="removeMarker(${m.id})">Del</button></td>`;
+        document.querySelector('#markerTable tbody').appendChild(tr);
     }
 
-    window.removeMarker = (id) => {
-        tabsData[activeTab].markers = tabsData[activeTab].markers.filter(m => m.id !== id);
-        document.getElementById('plotBtn').click();
-    };
-
-    window.clearMarkers = () => {
-        tabsData[activeTab].markers = []; document.getElementById('plotBtn').click();
-    };
+    window.removeMarker = (id) => { tabsData[activeTab].markers = tabsData[activeTab].markers.filter(m => m.id !== id); document.getElementById('plotBtn').click(); };
+    window.clearMarkers = () => { tabsData[activeTab].markers = []; document.getElementById('plotBtn').click(); };
 
 </script>
 
