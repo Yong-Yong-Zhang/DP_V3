@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Plotting Tool v4.3@Yong (No Legend Border)</title>
+    <title>Data Plotting Tool v4.4 (Scatter Plot Option)</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -112,7 +112,7 @@
     <div id="app-container">
         <div id="left-panel">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0">Control Panel@Yong 2025/12/8 <span class="badge bg-secondary fs-6">v4.3</span></h5>
+                <h5 class="mb-0">Control Panel <span class="badge bg-secondary fs-6">v4.4</span></h5>
             </div>
 
             <div class="card">
@@ -186,6 +186,15 @@
                              <label class="axis-label fw-bold text-primary">Legend Font (px)</label>
                              <input type="number" id="legendFontSizeInput" class="form-control form-control-sm" value="12" min="8" max="40" onchange="saveConfig()">
                         </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="axis-label fw-bold text-success">Chart Type</label>
+                        <select id="chartTypeSelect" class="form-select form-select-sm" onchange="saveConfig()">
+                            <option value="lines+markers">Line + Markers (Default)</option>
+                            <option value="markers">Scatter (Markers Only)</option>
+                            <option value="lines">Line Only</option>
+                        </select>
                     </div>
 
                     <div class="row g-1 mb-2">
@@ -481,7 +490,8 @@
     function createNewTab() {
         tabCounter++;
         const tabId = `tab_${Date.now()}`;
-        let files = [], config = { fontSize: 14, legendFontSize: 12, headerRow: 1 };
+        // NEW: chartType default
+        let files = [], config = { fontSize: 14, legendFontSize: 12, headerRow: 1, chartType: 'lines+markers' };
         
         if (Object.keys(tabsData).length > 0) {
             const src = tabsData[Object.keys(tabsData)[0]];
@@ -524,6 +534,8 @@
         c.chartTitle = document.getElementById('chartTitle').value;
         c.fontSize = document.getElementById('chartFontSizeInput').value;
         c.legendFontSize = document.getElementById('legendFontSizeInput').value;
+        // NEW: Save chart type
+        c.chartType = document.getElementById('chartTypeSelect').value;
         c.xLabel = document.getElementById('xLabelInput').value; c.yLabel = document.getElementById('yLabelInput').value;
         c.headerRow = document.getElementById('headerRowInput').value;
         c.xMin = document.getElementById('xMin').value; c.xMax = document.getElementById('xMax').value; c.xStep = document.getElementById('xStep').value;
@@ -537,6 +549,8 @@
         document.getElementById('chartTitle').value = c.chartTitle || '';
         document.getElementById('chartFontSizeInput').value = c.fontSize || 14;
         document.getElementById('legendFontSizeInput').value = c.legendFontSize || 12;
+        // NEW: Restore chart type
+        document.getElementById('chartTypeSelect').value = c.chartType || 'lines+markers';
         document.getElementById('xLabelInput').value = c.xLabel || ''; document.getElementById('yLabelInput').value = c.yLabel || '';
         document.getElementById('headerRowInput').value = c.headerRow || 1;
         document.getElementById('xMin').value = c.xMin || ''; document.getElementById('xMax').value = c.xMax || ''; document.getElementById('xStep').value = c.xStep || '';
@@ -686,6 +700,8 @@
         const xc = document.getElementById('xColSelect').value, yc = document.getElementById('yColSelect').value;
         const fs = parseInt(document.getElementById('chartFontSizeInput').value) || 14;
         const lfs = parseInt(document.getElementById('legendFontSizeInput').value) || 12; 
+        // NEW: Get Chart Type
+        const chartType = document.getElementById('chartTypeSelect').value || 'lines+markers';
         
         let traces = [], shapes = [];
         files.forEach(f => {
@@ -694,7 +710,11 @@
             f.data.forEach(r => { if(typeof r[xc]==='number' && typeof r[yc]==='number') { xd.push(r[xc]); yd.push(r[yc]); } });
             let combo = xd.map((x,i) => ({x, y:yd[i]})).sort((a,b) => a.x - b.x);
             f.cacheX = combo.map(d=>d.x); f.cacheY = combo.map(d=>d.y);
-            traces.push({ x: f.cacheX, y: f.cacheY, mode: 'lines+markers', type: 'scatter', name: f.name, line: {color: f.color, width: 2}, marker: {size: 6}, customdata: f.id });
+            traces.push({ 
+                x: f.cacheX, y: f.cacheY, 
+                mode: chartType, // Apply chart type
+                type: 'scatter', name: f.name, line: {color: f.color, width: 2}, marker: {size: 6}, customdata: f.id 
+            });
         });
 
         const sv = parseFloat(document.getElementById('specInput').value);
@@ -815,4 +835,3 @@
 
 </body>
 </html>
-
