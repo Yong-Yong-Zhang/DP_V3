@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Plotting Tool v4.4@Yong (Scatter Plot Option)</title>
+    <title>Data Plotting Tool v4.5 (Marker Color Fix)</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -95,6 +95,13 @@
         .sortable-header { cursor: pointer; user-select: none; }
         .sortable-header:hover { background-color: #e9ecef; }
         
+        /* 確保表格背景色能顯示 */
+        #markerTable td, #markerTable th { 
+            vertical-align: middle; 
+            background-color: transparent !important; 
+            padding: 4px 8px; 
+        }
+
         #drive-config { display: none; background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
         
         .form-control-sm, .form-select-sm, .btn-xs { font-size: 0.85rem; }
@@ -112,7 +119,7 @@
     <div id="app-container">
         <div id="left-panel">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0">Control Panel @Yong<span class="badge bg-secondary fs-6">v4.4</span></h5>
+                <h5 class="mb-0">Control Panel @Yong<span class="badge bg-secondary fs-6">v4.5</span></h5>
             </div>
 
             <div class="card">
@@ -330,6 +337,17 @@
         }
     };
 
+    // --- Helper: HEX to RGBA (Restored) ---
+    function hexToRgba(hex, alpha) {
+        if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
+            let c = hex.substring(1).split('');
+            if(c.length === 3) c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+            c = '0x' + c.join('');
+            return 'rgba(' + [(c>>16)&255, (c>>8)&255, c&255].join(',') + ',' + alpha + ')';
+        }
+        return 'rgba(255,255,255,' + alpha + ')';
+    }
+
     window.exportView = (mode) => {
         let elementId = 'right-panel'; 
         let filenameSuffix = 'FullView';
@@ -490,7 +508,6 @@
     function createNewTab() {
         tabCounter++;
         const tabId = `tab_${Date.now()}`;
-        // NEW: chartType default
         let files = [], config = { fontSize: 14, legendFontSize: 12, headerRow: 1, chartType: 'lines+markers' };
         
         if (Object.keys(tabsData).length > 0) {
@@ -534,7 +551,6 @@
         c.chartTitle = document.getElementById('chartTitle').value;
         c.fontSize = document.getElementById('chartFontSizeInput').value;
         c.legendFontSize = document.getElementById('legendFontSizeInput').value;
-        // NEW: Save chart type
         c.chartType = document.getElementById('chartTypeSelect').value;
         c.xLabel = document.getElementById('xLabelInput').value; c.yLabel = document.getElementById('yLabelInput').value;
         c.headerRow = document.getElementById('headerRowInput').value;
@@ -549,7 +565,6 @@
         document.getElementById('chartTitle').value = c.chartTitle || '';
         document.getElementById('chartFontSizeInput').value = c.fontSize || 14;
         document.getElementById('legendFontSizeInput').value = c.legendFontSize || 12;
-        // NEW: Restore chart type
         document.getElementById('chartTypeSelect').value = c.chartType || 'lines+markers';
         document.getElementById('xLabelInput').value = c.xLabel || ''; document.getElementById('yLabelInput').value = c.yLabel || '';
         document.getElementById('headerRowInput').value = c.headerRow || 1;
@@ -700,7 +715,6 @@
         const xc = document.getElementById('xColSelect').value, yc = document.getElementById('yColSelect').value;
         const fs = parseInt(document.getElementById('chartFontSizeInput').value) || 14;
         const lfs = parseInt(document.getElementById('legendFontSizeInput').value) || 12; 
-        // NEW: Get Chart Type
         const chartType = document.getElementById('chartTypeSelect').value || 'lines+markers';
         
         let traces = [], shapes = [];
@@ -712,7 +726,7 @@
             f.cacheX = combo.map(d=>d.x); f.cacheY = combo.map(d=>d.y);
             traces.push({ 
                 x: f.cacheX, y: f.cacheY, 
-                mode: chartType, // Apply chart type
+                mode: chartType, 
                 type: 'scatter', name: f.name, line: {color: f.color, width: 2}, marker: {size: 6}, customdata: f.id 
             });
         });
@@ -735,7 +749,7 @@
                 showline: true, mirror: true
             },
             hovermode: 'closest', shapes: shapes,
-            legend: { bgcolor: 'rgba(255,255,255,0.8)', borderwidth: 0, font: {size: lfs} }, // borderwidth: 0 removes the frame
+            legend: { bgcolor: 'rgba(255,255,255,0.8)', borderwidth: 0, font: {size: lfs} },
             margin: { t: 50, r: 20, l: 60, b: 50 }
         };
         updateLineSelect();
@@ -823,7 +837,7 @@
 
         const f = tabsData[activeTab].files.find(x => x.id === m.fileId);
         const tr = document.createElement('tr');
-        if(f) tr.style.backgroundColor = f.color + '33'; 
+        if(f) tr.style.backgroundColor = hexToRgba(f.color, 0.2); // Restored 20% alpha using helper
         tr.innerHTML = `<td>${m.name}</td><td>${m.lineName}</td><td>${m.x.toFixed(2)}</td><td>${m.y.toFixed(2)}</td><td>${m.note}</td><td><button class="btn btn-xs btn-danger" onclick="removeMarker(${m.id})">Del</button></td>`;
         document.querySelector('#markerTable tbody').appendChild(tr);
     }
@@ -835,4 +849,3 @@
 
 </body>
 </html>
-
