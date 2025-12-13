@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Plotting Tool v4.5 (Yong)</title>
+    <title>Data Plotting Tool v4.8 @Yong</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -119,7 +119,8 @@
     <div id="app-container">
         <div id="left-panel">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0">Control Panel @Yong<span class="badge bg-secondary fs-6">v4.5</span></h5>
+                <h5 class="mb-0">Control Panel <span class="badge bg-secondary fs-6">v4.8</span></h5>
+                <small class="text-muted fw-bold" style="font-family: monospace; font-size: 0.9rem;">@Yong</small>
             </div>
 
             <div class="card">
@@ -348,19 +349,96 @@
         return 'rgba(255,255,255,' + alpha + ')';
     }
 
+    // --- FEATURE: ULTRA-ROBUST EXPORT (v4.7) ---
     window.exportView = (mode) => {
-        let elementId = 'right-panel'; 
-        let filenameSuffix = 'FullView';
-        if (mode === 'chart') { elementId = 'chart-container'; filenameSuffix = 'ChartOnly'; } 
-        else if (mode === 'table') { elementId = 'table-container'; filenameSuffix = 'TableOnly'; }
+        const btn = document.querySelector('.dropdown-toggle');
+        const originalText = btn.innerText;
+        btn.innerText = "Processing...";
 
-        const element = document.getElementById(elementId);
-        html2canvas(element, { backgroundColor: '#ffffff', scale: 2 }).then(canvas => {
-            const link = document.createElement('a');
-            link.download = `${tabsData[activeTab].name}_${filenameSuffix}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        });
+        const rightPanel = document.getElementById('right-panel');
+        const chartContainer = document.getElementById('chart-container');
+        const tableContainer = document.getElementById('table-container');
+        const tableScroll = document.querySelector('.marker-scroll-container');
+        const mainWrapper = document.getElementById('main-wrapper');
+        const appContainer = document.getElementById('app-container');
+        
+        const targetId = (mode === 'chart') ? 'chart-container' : (mode === 'table' ? 'table-container' : 'right-panel');
+        const targetElement = document.getElementById(targetId);
+
+        // Snapshot original styles
+        const styles = {
+            html: { height: document.documentElement.style.height, overflow: document.documentElement.style.overflow },
+            body: { height: document.body.style.height, overflow: document.body.style.overflow },
+            mw: { height: mainWrapper.style.height, overflow: mainWrapper.style.overflow },
+            app: { height: appContainer.style.height, overflow: appContainer.style.overflow },
+            rp: { height: rightPanel.style.height, overflow: rightPanel.style.overflow },
+            cc: { height: chartContainer.style.height, flex: chartContainer.style.flex },
+            tc: { height: tableContainer.style.height, flex: tableContainer.style.flex, overflow: tableContainer.style.overflow },
+            ts: { position: tableScroll.style.position, overflow: tableScroll.style.overflow, height: tableScroll.style.height }
+        };
+
+        if (mode !== 'chart') {
+            // 1. Lock Chart Height to prevent shrinking/disappearing
+            const currentChartHeight = chartContainer.offsetHeight;
+            chartContainer.style.flex = 'none';
+            chartContainer.style.height = `${currentChartHeight}px`;
+
+            // 2. Remove SCROLL restrictions globally
+            // This forces the "scrollable" inner divs to push the body size
+            document.documentElement.style.height = 'auto';
+            document.documentElement.style.overflow = 'visible';
+            document.body.style.height = 'auto';
+            document.body.style.overflow = 'visible';
+            mainWrapper.style.height = 'auto';
+            mainWrapper.style.overflow = 'visible';
+            appContainer.style.height = 'auto';
+            appContainer.style.overflow = 'visible';
+            rightPanel.style.height = 'auto';
+            rightPanel.style.overflow = 'visible';
+
+            // 3. Expand the Table
+            tableScroll.style.position = 'static'; // Crucial: removes absolute constraint
+            tableScroll.style.overflow = 'visible';
+            tableScroll.style.height = 'auto';
+            
+            tableContainer.style.flex = 'none'; 
+            tableContainer.style.height = 'auto'; 
+            tableContainer.style.overflow = 'visible';
+        }
+
+        setTimeout(() => {
+            // 4. Capture with explicit size params
+            // We calculate the FULL expanded height of the target
+            const fullHeight = targetElement.scrollHeight;
+            
+            html2canvas(targetElement, { 
+                backgroundColor: '#ffffff', 
+                scale: 2,
+                height: fullHeight, // Force canvas to capture full height
+                windowHeight: fullHeight // Pretend the window is massive
+            }).then(canvas => {
+                // 5. Restore Original Styles
+                if (mode !== 'chart') {
+                    document.documentElement.style.height = styles.html.height; document.documentElement.style.overflow = styles.html.overflow;
+                    document.body.style.height = styles.body.height; document.body.style.overflow = styles.body.overflow;
+                    mainWrapper.style.height = styles.mw.height; mainWrapper.style.overflow = styles.mw.overflow;
+                    appContainer.style.height = styles.app.height; appContainer.style.overflow = styles.app.overflow;
+                    rightPanel.style.height = styles.rp.height; rightPanel.style.overflow = styles.rp.overflow;
+                    chartContainer.style.height = styles.cc.height; chartContainer.style.flex = styles.cc.flex;
+                    tableContainer.style.height = styles.tc.height; tableContainer.style.flex = styles.tc.flex; tableContainer.style.overflow = styles.tc.overflow;
+                    tableScroll.style.position = styles.ts.position; tableScroll.style.overflow = styles.ts.overflow; tableScroll.style.height = styles.ts.height;
+                }
+                
+                const link = document.createElement('a');
+                link.download = `${tabsData[activeTab].name}_${mode === 'chart' ? 'Chart' : (mode === 'table' ? 'Table' : 'FullView')}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                btn.innerText = originalText;
+            }).catch(e => {
+                console.error(e);
+                btn.innerText = "Error";
+            });
+        }, 100); // Increased timeout slightly for better layout settling
     };
 
     window.exportMergedCSV = () => {
@@ -837,7 +915,7 @@
 
         const f = tabsData[activeTab].files.find(x => x.id === m.fileId);
         const tr = document.createElement('tr');
-        if(f) tr.style.backgroundColor = hexToRgba(f.color, 0.2); // Restored 20% alpha using helper
+        if(f) tr.style.backgroundColor = hexToRgba(f.color, 0.2); 
         tr.innerHTML = `<td>${m.name}</td><td>${m.lineName}</td><td>${m.x.toFixed(2)}</td><td>${m.y.toFixed(2)}</td><td>${m.note}</td><td><button class="btn btn-xs btn-danger" onclick="removeMarker(${m.id})">Del</button></td>`;
         document.querySelector('#markerTable tbody').appendChild(tr);
     }
@@ -849,4 +927,3 @@
 
 </body>
 </html>
-
