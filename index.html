@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Plotting Tool v4.8 @Yong</title>
+    <title>Data Plotting Tool v5.5 @Yong</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -47,7 +47,8 @@
 
         /* 左側控制面板 */
         #left-panel {
-            width: 400px; min-width: 300px; max-width: 1600px;
+            width: 440px; /* Increased width for new column */
+            min-width: 300px; max-width: 1600px;
             background-color: #f8f9fa; border-right: 1px solid #ddd;
             padding: 15px; 
             display: block; 
@@ -102,10 +103,31 @@
             padding: 4px 8px; 
         }
 
+        /* Select styling in table */
+        .style-select {
+            font-size: 0.8rem;
+            padding: 0 2px;
+            height: 24px;
+            border: 1px solid #ced4da;
+            border-radius: 3px;
+            width: 100%;
+            background-color: transparent;
+        }
+
         #drive-config { display: none; background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
         
         .form-control-sm, .form-select-sm, .btn-xs { font-size: 0.85rem; }
         .btn-group-xs > .btn, .btn-xs { padding: .25rem .4rem; line-height: 1.5; border-radius: .2rem; }
+
+        /* Modal Image Styling */
+        #previewImage {
+            max-width: 100%;
+            max-height: 70vh;
+            object-fit: contain;
+            border: 1px solid #ddd;
+            display: block;
+            margin: 0 auto;
+        }
     </style>
 </head>
 <body>
@@ -119,7 +141,7 @@
     <div id="app-container">
         <div id="left-panel">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0">Control Panel <span class="badge bg-secondary fs-6">v4.8</span></h5>
+                <h5 class="mb-0">Control Panel <span class="badge bg-secondary fs-6">v5.5</span></h5>
                 <small class="text-muted fw-bold" style="font-family: monospace; font-size: 0.9rem;">@Yong</small>
             </div>
 
@@ -195,6 +217,27 @@
                              <input type="number" id="legendFontSizeInput" class="form-control form-control-sm" value="12" min="8" max="40" onchange="saveConfig()">
                         </div>
                     </div>
+                    
+                    <div class="mb-2">
+                        <label class="axis-label fw-bold text-dark">Legend Position</label>
+                        <select id="legendPosSelect" class="form-select form-select-sm" onchange="saveConfig()">
+                            <option value="outside">Outside (Default)</option>
+                            <option value="inside-tr">Inside Top-Right</option>
+                            <option value="inside-tl">Inside Top-Left</option>
+                            <option value="inside-br">Inside Bottom-Right</option>
+                            <option value="inside-bl">Inside Bottom-Left</option>
+                        </select>
+                    </div>
+
+                    <div class="row g-1 mb-2 bg-light border p-1 rounded">
+                        <div class="col-12"><small class="fw-bold text-dark">Export Size (px)</small></div>
+                        <div class="col-6">
+                            <input type="number" id="exportWidthInput" class="form-control form-control-sm" placeholder="W" value="1920" onchange="saveConfig()">
+                        </div>
+                        <div class="col-6">
+                            <input type="number" id="exportHeightInput" class="form-control form-control-sm" placeholder="H" value="1080" onchange="saveConfig()">
+                        </div>
+                    </div>
 
                     <div class="mb-2">
                         <label class="axis-label fw-bold text-success">Chart Type</label>
@@ -203,6 +246,13 @@
                             <option value="markers">Scatter (Markers Only)</option>
                             <option value="lines">Line Only</option>
                         </select>
+                    </div>
+                    
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="distinctModeCheck" checked onchange="saveConfig(); document.getElementById('plotBtn').click();">
+                        <label class="form-check-label small fw-bold" for="distinctModeCheck">
+                            ✨ Auto Markers & Colors (Manual Style)
+                        </label>
                     </div>
 
                     <div class="row g-1 mb-2">
@@ -245,9 +295,10 @@
                         <table class="table table-sm table-hover mb-0" id="fileTable" style="font-size: 0.9rem;">
                             <thead class="table-light position-sticky top-0 start-0 border-bottom">
                                 <tr>
-                                    <th width="30"></th>
+                                    <th width="25"></th>
                                     <th class="sortable-header" onclick="sortFiles()">Label <span id="sortIcon">↕</span></th>
-                                    <th width="40">Clr</th>
+                                    <th width="35">Clr</th>
+                                    <th width="75">Style</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -264,11 +315,14 @@
                     <h6 class="mb-0 fw-bold ps-1" id="chart-view-title">Chart View</h6>
                     
                     <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                        <button type="button" class="btn btn-sm btn-outline-dark" onclick="showChartPreview()" title="Preview selected size">
+                            👁️ Preview
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle ms-1" data-bs-toggle="dropdown" aria-expanded="false">
                             📷 Export PNG
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#" onclick="exportView('chart')">Only Chart</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportView('chart')">Only Chart (HQ)</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportView('table')">Only Table</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="#" onclick="exportView('full')">Full View (Chart+Table)</a></li>
@@ -322,8 +376,44 @@
     </div>
 </div>
 
+<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-light py-2">
+        <h6 class="modal-title fw-bold">Export Preview</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center bg-light" style="overflow: auto;">
+        <div id="previewSpinner" class="spinner-border text-primary" role="status" style="display:none;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <img id="previewImage" src="" alt="Preview">
+        <div class="mt-2 text-muted small" id="previewDims"></div>
+      </div>
+      <div class="modal-footer py-1">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-sm btn-primary" onclick="downloadFromPreview()">💾 Download This Image</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-    const rainbowColors = ['#FF0000', '#FF7F00', '#FFD700', '#32CD32', '#008000', '#00CED1', '#0000FF', '#4B0082', '#800080', '#FF00FF', '#A52A2A', '#808080'];
+    // --- FEATURE: UNIQUE COLORS V5.3 (HIGH CONTRAST) ---
+    const distinctHexColors = [
+        '#FF0000', '#0000FF', '#008000', '#FFD700', '#800080', '#00CED1', '#FF1493', '#8B4513', 
+        '#708090', '#DC143C', '#4B0082', '#556B2F', '#00BFFF', '#FFA500', '#FF69B4', '#2E8B57', 
+        '#CD5C5C', '#191970', '#808000', '#4682B4', '#DA70D6', '#A0522D', '#2F4F4F', '#FF4500', 
+        '#6A5ACD', '#32CD32', '#B22222', '#5F9EA0', '#9932CC', '#D2691E', '#000080', '#ADFF2F', 
+        '#FF6347', '#7B68EE', '#3CB371', '#C71585', '#D2B48C', '#6495ED', '#9ACD32', '#800000', 
+        '#008B8B', '#BA55D3', '#F4A460', '#4169E1', '#006400', '#E9967A', '#8A2BE2', '#20B2AA', 
+        '#DB7093', '#F08080', '#778899', '#B0C4DE', '#FFFF54', '#00FA9A', '#9370DB', '#BC8F8F', 
+        '#40E0D0', '#C0C0C0', '#483D8B', '#FF7F50'
+    ];
+    
+    // --- FEATURE: PATTERN CYCLING (v5.5 - Markers Only) ---
+    const markerSymbols = ['circle', 'square', 'diamond', 'triangle-up', 'triangle-down', 'cross', 'x', 'star', 'hexagon', 'pentagon', 'hexagram', 'star-square'];
+
     let tabsData = {}; let activeTab = null; let tabCounter = 0;
     
     // Google Drive Config
@@ -338,7 +428,7 @@
         }
     };
 
-    // --- Helper: HEX to RGBA (Restored) ---
+    // --- Helper: HEX to RGBA ---
     function hexToRgba(hex, alpha) {
         if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
             let c = hex.substring(1).split('');
@@ -349,8 +439,90 @@
         return 'rgba(255,255,255,' + alpha + ')';
     }
 
-    // --- FEATURE: ULTRA-ROBUST EXPORT (v4.7) ---
+    // --- Helper: Generate Distinct Color (HSL -> Hex) ---
+    function getDistinctColor(idx) {
+        if(idx < distinctHexColors.length) {
+            return distinctHexColors[idx];
+        }
+        const hue = (idx * 137.508) % 360; 
+        const lightness = 40 + (idx % 3) * 15;
+        return hslToHex(hue, 80, lightness);
+    }
+
+    function hslToHex(h, s, l) {
+        l /= 100;
+        const a = s * Math.min(l, 1 - l) / 100;
+        const f = n => {
+            const k = (n + h / 30) % 12;
+            const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+            return Math.round(255 * color).toString(16).padStart(2, '0');
+        };
+        return `#${f(0)}${f(8)}${f(4)}`;
+    }
+
+    // --- FEATURE: PREVIEW (v5.0) ---
+    window.showChartPreview = async () => {
+        const w = parseInt(document.getElementById('exportWidthInput').value) || 1920;
+        const h = parseInt(document.getElementById('exportHeightInput').value) || 1080;
+        
+        const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+        const img = document.getElementById('previewImage');
+        const spinner = document.getElementById('previewSpinner');
+        const dims = document.getElementById('previewDims');
+
+        img.style.display = 'none';
+        spinner.style.display = 'inline-block';
+        dims.innerText = `Rendering ${w} x ${h} ...`;
+        modal.show();
+
+        try {
+            // Use Plotly toImage to generate a Data URL
+            const url = await Plotly.toImage('plotDiv', {
+                format: 'png',
+                width: w,
+                height: h
+            });
+            
+            img.src = url;
+            img.onload = () => {
+                spinner.style.display = 'none';
+                img.style.display = 'block';
+                dims.innerText = `Dimensions: ${w}px x ${h}px`;
+            };
+        } catch (e) {
+            console.error(e);
+            dims.innerText = "Error generating preview.";
+            spinner.style.display = 'none';
+        }
+    };
+
+    window.downloadFromPreview = () => {
+        const img = document.getElementById('previewImage');
+        if(!img.src) return;
+        const link = document.createElement('a');
+        link.download = `${tabsData[activeTab].name}_Chart_${document.getElementById('exportWidthInput').value}x${document.getElementById('exportHeightInput').value}.png`;
+        link.href = img.src;
+        link.click();
+    };
+
+    // --- FEATURE: ULTRA-ROBUST EXPORT (v4.9) ---
     window.exportView = (mode) => {
+        // --- 針對 "Only Chart" 使用 Plotly 原生下載 (支援自訂尺寸) ---
+        if (mode === 'chart') {
+            const w = parseInt(document.getElementById('exportWidthInput').value) || 1920;
+            const h = parseInt(document.getElementById('exportHeightInput').value) || 1080;
+            const fileName = `${tabsData[activeTab].name}_Chart`;
+
+            Plotly.downloadImage('plotDiv', {
+                format: 'png', 
+                width: w, 
+                height: h, 
+                filename: fileName
+            });
+            return; // 結束，不執行下方的 html2canvas
+        }
+
+        // --- 針對 "Table" 或 "Full" 繼續使用 html2canvas ---
         const btn = document.querySelector('.dropdown-toggle');
         const originalText = btn.innerText;
         btn.innerText = "Processing...";
@@ -362,7 +534,7 @@
         const mainWrapper = document.getElementById('main-wrapper');
         const appContainer = document.getElementById('app-container');
         
-        const targetId = (mode === 'chart') ? 'chart-container' : (mode === 'table' ? 'table-container' : 'right-panel');
+        const targetId = (mode === 'table' ? 'table-container' : 'right-panel');
         const targetElement = document.getElementById(targetId);
 
         // Snapshot original styles
@@ -430,7 +602,7 @@
                 }
                 
                 const link = document.createElement('a');
-                link.download = `${tabsData[activeTab].name}_${mode === 'chart' ? 'Chart' : (mode === 'table' ? 'Table' : 'FullView')}.png`;
+                link.download = `${tabsData[activeTab].name}_${mode === 'table' ? 'Table' : 'FullView'}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
                 btn.innerText = originalText;
@@ -438,7 +610,7 @@
                 console.error(e);
                 btn.innerText = "Error";
             });
-        }, 100); // Increased timeout slightly for better layout settling
+        }, 100); 
     };
 
     window.exportMergedCSV = () => {
@@ -556,7 +728,7 @@
             const match = tabsData[keys[0]].files.find(f => f.originalName === name || f.name === name.replace('.csv',''));
             if (match) return match.color;
         }
-        return rainbowColors[idx % rainbowColors.length];
+        return getDistinctColor(idx); // Use new distinct color generator
     }
 
     function handleDriveFiles(filesObjList) {
@@ -574,7 +746,7 @@
                         while (filesList.some(f => f.name === fName)) { fName = `${obj.name.replace('.csv', '')} (${c})`; c++; }
                         filesList.push({
                             id: Date.now() + Math.random(), name: fName, originalName: obj.name,
-                            data: res.data, color: getSyncColor(obj.name, filesList.length), selected: true
+                            data: res.data, color: getSyncColor(obj.name, filesList.length), selected: true, dash: 'solid'
                         });
                         finishProcessing(null);
                     }
@@ -629,6 +801,13 @@
         c.chartTitle = document.getElementById('chartTitle').value;
         c.fontSize = document.getElementById('chartFontSizeInput').value;
         c.legendFontSize = document.getElementById('legendFontSizeInput').value;
+        c.exportW = document.getElementById('exportWidthInput').value;
+        c.exportH = document.getElementById('exportHeightInput').value;
+        c.legendPos = document.getElementById('legendPosSelect').value; 
+        
+        // Save Distinct Mode
+        c.distinctMode = document.getElementById('distinctModeCheck').checked;
+
         c.chartType = document.getElementById('chartTypeSelect').value;
         c.xLabel = document.getElementById('xLabelInput').value; c.yLabel = document.getElementById('yLabelInput').value;
         c.headerRow = document.getElementById('headerRowInput').value;
@@ -643,6 +822,14 @@
         document.getElementById('chartTitle').value = c.chartTitle || '';
         document.getElementById('chartFontSizeInput').value = c.fontSize || 14;
         document.getElementById('legendFontSizeInput').value = c.legendFontSize || 12;
+        
+        document.getElementById('exportWidthInput').value = c.exportW || 1920;
+        document.getElementById('exportHeightInput').value = c.exportH || 1080;
+        document.getElementById('legendPosSelect').value = c.legendPos || 'outside'; 
+        
+        // Restore Distinct Mode
+        document.getElementById('distinctModeCheck').checked = (c.distinctMode !== undefined) ? c.distinctMode : true;
+
         document.getElementById('chartTypeSelect').value = c.chartType || 'lines+markers';
         document.getElementById('xLabelInput').value = c.xLabel || ''; document.getElementById('yLabelInput').value = c.yLabel || '';
         document.getElementById('headerRowInput').value = c.headerRow || 1;
@@ -724,7 +911,7 @@
                                 while(targetList.some(f => f.name === final)) { final = `${name} (${c})`; c++; }
                                 targetList.push({
                                     id: Date.now()+Math.random(), name: final, originalName: file.name,
-                                    data: res.data, color: getSyncColor(file.name, targetList.length), selected: true
+                                    data: res.data, color: getSyncColor(file.name, targetList.length), selected: true, dash: 'solid'
                                 });
                             }
                             processed++;
@@ -767,9 +954,19 @@
         const tbody = document.querySelector('#fileTable tbody'); tbody.innerHTML = '';
         tabsData[activeTab].files.forEach((f, i) => {
             const tr = document.createElement('tr');
+            // FEATURE: Added Style Select Column
             tr.innerHTML = `<td><input type="checkbox" class="form-check-input" ${f.selected?'checked':''} onchange="toggleFile(${i},this.checked)"></td>
                             <td><input type="text" class="form-control form-control-sm border-0 bg-transparent p-0" value="${f.name}" onchange="updateLabel(${i},this.value)"></td>
-                            <td><input type="color" class="form-control form-control-sm form-control-color p-0" value="${f.color}" onchange="updateColor(${i},this.value)"></td>`;
+                            <td><input type="color" class="form-control form-control-sm form-control-color p-0" value="${f.color}" onchange="updateColor(${i},this.value)"></td>
+                            <td>
+                                <select class="style-select" onchange="updateLineStyle(${i}, this.value)">
+                                    <option value="solid" ${f.dash==='solid'?'selected':''}>Solid</option>
+                                    <option value="dash" ${f.dash==='dash'?'selected':''}>Dash</option>
+                                    <option value="dot" ${f.dash==='dot'?'selected':''}>Dot</option>
+                                    <option value="dashdot" ${f.dash==='dashdot'?'selected':''}>DashDot</option>
+                                    <option value="longdash" ${f.dash==='longdash'?'selected':''}>Long</option>
+                                </select>
+                            </td>`;
             tbody.appendChild(tr);
         });
     }
@@ -781,6 +978,7 @@
         updateLineSelect(); document.getElementById('plotBtn').click(); 
     };
     window.updateColor = (i, v) => { tabsData[activeTab].files[i].color = v; document.getElementById('plotBtn').click(); };
+    window.updateLineStyle = (i, v) => { tabsData[activeTab].files[i].dash = v; document.getElementById('plotBtn').click(); };
     window.toggleAllFiles = (v) => { tabsData[activeTab].files.forEach(f => f.selected = v); updateFileTable(); document.getElementById('plotBtn').click(); };
     window.sortFiles = () => {
         const o = tabsData[activeTab].sortOrder === 'asc' ? 'desc' : 'asc'; tabsData[activeTab].sortOrder = o;
@@ -794,23 +992,57 @@
         const fs = parseInt(document.getElementById('chartFontSizeInput').value) || 14;
         const lfs = parseInt(document.getElementById('legendFontSizeInput').value) || 12; 
         const chartType = document.getElementById('chartTypeSelect').value || 'lines+markers';
-        
+        const legPos = document.getElementById('legendPosSelect').value;
+        const useDistinct = document.getElementById('distinctModeCheck').checked;
+
         let traces = [], shapes = [];
+        let visibleIdx = 0; // Counter for visible traces to assign cycle styles correctly
+
         files.forEach(f => {
             if(!f.selected) return;
             let xd = [], yd = [];
             f.data.forEach(r => { if(typeof r[xc]==='number' && typeof r[yc]==='number') { xd.push(r[xc]); yd.push(r[yc]); } });
             let combo = xd.map((x,i) => ({x, y:yd[i]})).sort((a,b) => a.x - b.x);
             f.cacheX = combo.map(d=>d.x); f.cacheY = combo.map(d=>d.y);
+
+            // --- PATTERN LOGIC V5.5 ---
+            // Dash: controlled manually (default 'solid')
+            let lineStyle = f.dash || 'solid'; 
+            
+            // Markers: cycled if distinct mode is on
+            let markerSymbol = 'circle';
+            if (useDistinct) {
+                markerSymbol = markerSymbols[visibleIdx % markerSymbols.length];
+            }
+
             traces.push({ 
                 x: f.cacheX, y: f.cacheY, 
                 mode: chartType, 
-                type: 'scatter', name: f.name, line: {color: f.color, width: 2}, marker: {size: 6}, customdata: f.id 
+                type: 'scatter', 
+                name: f.name, 
+                line: {
+                    color: f.color, 
+                    width: useDistinct ? 2.5 : 2, 
+                    dash: lineStyle // Manual style overrides auto logic
+                }, 
+                marker: {
+                    size: useDistinct ? 7 : 6, 
+                    symbol: markerSymbol
+                }, 
+                customdata: f.id 
             });
+            visibleIdx++;
         });
 
         const sv = parseFloat(document.getElementById('specInput').value);
         if(!isNaN(sv)) shapes.push({ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: sv, y1: sv, line: {color: 'black', width: 2, dash: 'dash'} });
+
+        // Legend Layout Logic
+        let legendLayout = { bgcolor: 'rgba(255,255,255,0.6)', borderwidth: 0, font: {size: lfs}, itemsizing: 'constant' };
+        if (legPos === 'inside-tr') { Object.assign(legendLayout, { x: 0.99, y: 0.99, xanchor: 'right', yanchor: 'top' }); }
+        else if (legPos === 'inside-tl') { Object.assign(legendLayout, { x: 0.01, y: 0.99, xanchor: 'left', yanchor: 'top' }); }
+        else if (legPos === 'inside-br') { Object.assign(legendLayout, { x: 0.99, y: 0.01, xanchor: 'right', yanchor: 'bottom' }); }
+        else if (legPos === 'inside-bl') { Object.assign(legendLayout, { x: 0.01, y: 0.01, xanchor: 'left', yanchor: 'bottom' }); }
 
         const layout = {
             title: { text: document.getElementById('chartTitle').value || `${yc} vs ${xc}`, font: {size: Math.round(fs*1.3)} },
@@ -827,7 +1059,7 @@
                 showline: true, mirror: true
             },
             hovermode: 'closest', shapes: shapes,
-            legend: { bgcolor: 'rgba(255,255,255,0.8)', borderwidth: 0, font: {size: lfs} },
+            legend: legendLayout,
             margin: { t: 50, r: 20, l: 60, b: 50 }
         };
         updateLineSelect();
