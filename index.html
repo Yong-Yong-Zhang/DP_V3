@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Plotting Tool v5.5 @Yong</title>
+    <title>Data Plotting Tool v5.7 (Dual Theme) @Yong</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -13,121 +13,171 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
     <style>
-        /* --- 全局設定 --- */
+        /* --- CSS Variables for Theming --- */
+        :root {
+            /* Default Dark Theme */
+            --bg-body: #121212;
+            --bg-panel: #1e1e1e;
+            --bg-card: #252525;
+            --bg-input: #333333;
+            --text-main: #e0e0e0;
+            --text-muted: #aaaaaa;
+            --border-color: #404040;
+            --table-hover: #333333;
+            --modal-bg: #222;
+            --highlight-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Light Theme Overrides */
+        [data-theme="light"] {
+            --bg-body: #f8f9fa;
+            --bg-panel: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #ffffff;
+            --text-main: #212529;
+            --text-muted: #6c757d;
+            --border-color: #dee2e6;
+            --table-hover: #f2f2f2;
+            --modal-bg: #ffffff;
+            --highlight-color: rgba(0, 0, 0, 0.05);
+        }
+
+        /* --- Global Styles --- */
         html { font-size: 115%; }
         body, html { 
             height: 100%; margin: 0; padding: 0; overflow: hidden; 
-            background-color: #f8f9fa; 
+            background-color: var(--bg-body); 
+            color: var(--text-main);
             font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             font-size: 1rem;
+            transition: background-color 0.3s, color 0.3s;
         }
         
         #main-wrapper { display: flex; flex-direction: column; height: 100vh; }
 
-        /* 頂部導航列 */
+        /* Top Nav */
         #top-nav {
             flex: 0 0 auto;
-            background-color: #fff;
-            border-bottom: 1px solid #ddd;
+            background-color: var(--bg-panel);
+            border-bottom: 1px solid var(--border-color);
             padding: 5px 10px 0 10px;
             display: flex; align-items: flex-end;
         }
         .nav-tabs { border-bottom: none; flex-grow: 1; }
         .nav-tabs .nav-item { margin-right: 2px; }
         .nav-tabs .nav-link { 
-            cursor: pointer; font-weight: 600; color: #495057; 
+            cursor: pointer; font-weight: 600; color: var(--text-muted); 
             padding: 8px 12px; display: flex; align-items: center; gap: 8px;
+            border-color: transparent;
         }
-        .nav-tabs .nav-link.active { color: #0d6efd; background-color: #f8f9fa; border-color: #ddd #ddd #f8f9fa; }
+        .nav-tabs .nav-link:hover { color: var(--text-main); background-color: var(--highlight-color); }
+        .nav-tabs .nav-link.active { 
+            color: var(--text-main); 
+            background-color: var(--bg-body); 
+            border-color: var(--border-color) var(--border-color) var(--bg-body); 
+            border-bottom: 2px solid transparent; /* Fix overlap */
+        }
         .tab-close-btn:hover { background-color: #dc3545; color: white; border-radius: 50%; width: 20px; text-align: center;}
         #add-tab-btn { cursor: pointer; font-weight: bold; padding: 5px 10px; color: #28a745; font-size: 1.2rem; }
 
-        /* --- 內容區域佈局 --- */
+        #theme-toggle {
+            cursor: pointer; padding: 5px 15px; margin-bottom: 5px;
+            border: 1px solid var(--border-color); border-radius: 20px;
+            background-color: var(--bg-input); color: var(--text-main);
+            font-size: 0.9rem; user-select: none;
+        }
+        #theme-toggle:hover { background-color: var(--highlight-color); }
+
+        /* Layout */
         #app-container { display: flex; flex: 1; overflow: hidden; }
 
-        /* 左側控制面板 */
         #left-panel {
-            width: 440px; /* Increased width for new column */
-            min-width: 300px; max-width: 1600px;
-            background-color: #f8f9fa; border-right: 1px solid #ddd;
-            padding: 15px; 
-            display: block; 
-            overflow-y: auto; 
-            height: 100%;
+            width: 440px; min-width: 300px; max-width: 1600px;
+            background-color: var(--bg-panel); 
+            border-right: 1px solid var(--border-color);
+            padding: 15px; display: block; overflow-y: auto; height: 100%;
         }
 
         .series-table-container {
-            max-height: 400px; 
-            overflow-y: auto;  
-            border: 1px solid #dee2e6;
+            max-height: 400px; overflow-y: auto;  
+            border: 1px solid var(--border-color);
         }
 
         #h-resizer {
-            width: 6px; background-color: #e9ecef; cursor: col-resize; z-index: 10;
-            border-left: 1px solid #dee2e6; border-right: 1px solid #dee2e6;
+            width: 6px; background-color: var(--border-color); cursor: col-resize; z-index: 10;
+            border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color);
         }
 
-        /* 右側圖表區域 */
         #right-panel {
-            flex-grow: 1; background-color: #ffffff; display: flex;
+            flex-grow: 1; background-color: var(--bg-body); display: flex;
             flex-direction: column; overflow: hidden; padding: 10px;
         }
 
         #v-resizer {
-            height: 8px; background-color: #e9ecef; cursor: row-resize;
-            margin: 5px 0; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; flex-shrink: 0;
+            height: 8px; background-color: var(--border-color); cursor: row-resize;
+            margin: 5px 0; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); flex-shrink: 0;
         }
 
         #chart-container { height: 60%; min-height: 200px; display: flex; flex-direction: column; }
         #table-container { flex: 1; min-height: 150px; display: flex; flex-direction: column; overflow: hidden; }
 
-        /* 卡片樣式 */
-        .card { margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #eee; }
-        .card-header { font-weight: 600; padding: 8px 15px; font-size: 0.95rem; }
+        /* Cards & Inputs */
+        .card { 
+            margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            border: 1px solid var(--border-color); 
+            background-color: var(--bg-card); color: var(--text-main); 
+        }
+        .card-header { font-weight: 600; padding: 8px 15px; font-size: 0.95rem; border-bottom: 1px solid var(--border-color); }
         .card-body { padding: 12px; }
         
-        #plotDiv { width: 100%; height: 100%; background: white; }
+        .form-control, .form-select {
+            background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main);
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: var(--bg-input); border-color: #0d6efd; color: var(--text-main); box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+        }
+        .form-control::placeholder { color: var(--text-muted); }
+        
+        #plotDiv { width: 100%; height: 100%; background: var(--bg-panel); border: 1px solid var(--border-color); }
         
         .marker-scroll-container {
             position: absolute; top: 0; bottom: 0; left: 0; right: 0; overflow-y: auto;
+            background-color: var(--bg-card); border: 1px solid var(--border-color);
         }
 
-        .axis-label { font-size: 0.8rem; color: #555; margin-bottom: 2px; }
+        .axis-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 2px; }
         .sortable-header { cursor: pointer; user-select: none; }
-        .sortable-header:hover { background-color: #e9ecef; }
+        .sortable-header:hover { background-color: var(--table-hover); }
         
-        /* 確保表格背景色能顯示 */
-        #markerTable td, #markerTable th { 
-            vertical-align: middle; 
-            background-color: transparent !important; 
-            padding: 4px 8px; 
+        /* Table */
+        .table { color: var(--text-main); --bs-table-color: var(--text-main); --bs-table-bg: transparent; }
+        .table thead th { 
+            background-color: var(--bg-input); color: var(--text-main); 
+            border-bottom: 1px solid var(--border-color); border-color: var(--border-color);
         }
+        .table td, .table th { 
+            border-color: var(--border-color); 
+            vertical-align: middle; padding: 4px 8px; 
+        }
+        .table-hover tbody tr:hover td { background-color: var(--table-hover) !important; }
 
-        /* Select styling in table */
         .style-select {
-            font-size: 0.8rem;
-            padding: 0 2px;
-            height: 24px;
-            border: 1px solid #ced4da;
-            border-radius: 3px;
-            width: 100%;
-            background-color: transparent;
+            font-size: 0.8rem; padding: 0 2px; height: 24px;
+            border: 1px solid var(--border-color); border-radius: 3px; width: 100%;
+            background-color: var(--bg-input); color: var(--text-main);
         }
 
-        #drive-config { display: none; background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+        #drive-config { display: none; background: #fff3cd; color: #664d03; padding: 10px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #ffecb5; }
+        [data-theme="dark"] #drive-config { background: #443300; color: #fff; border-color: #665500; }
         
         .form-control-sm, .form-select-sm, .btn-xs { font-size: 0.85rem; }
         .btn-group-xs > .btn, .btn-xs { padding: .25rem .4rem; line-height: 1.5; border-radius: .2rem; }
 
-        /* Modal Image Styling */
-        #previewImage {
-            max-width: 100%;
-            max-height: 70vh;
-            object-fit: contain;
-            border: 1px solid #ddd;
-            display: block;
-            margin: 0 auto;
-        }
+        /* Modal */
+        .modal-content { background-color: var(--modal-bg); color: var(--text-main); border: 1px solid var(--border-color); }
+        .modal-header, .modal-footer { border-color: var(--border-color); }
+        #previewImage { max-width: 100%; max-height: 70vh; object-fit: contain; border: 1px solid var(--border-color); display: block; margin: 0 auto; }
+        [data-theme="dark"] .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
     </style>
 </head>
 <body>
@@ -136,12 +186,15 @@
     <div id="top-nav">
         <ul class="nav nav-tabs" id="tab-list"></ul>
         <div id="add-tab-btn" onclick="createNewTab()" title="Add New Plot">+</div>
+        <div class="ms-auto d-flex align-items-center">
+            <button id="theme-toggle" onclick="toggleTheme()">🌗 Theme</button>
+        </div>
     </div>
 
     <div id="app-container">
         <div id="left-panel">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0">Control Panel <span class="badge bg-secondary fs-6">v5.5</span></h5>
+                <h5 class="mb-0">Control Panel <span class="badge bg-secondary fs-6">v5.7</span></h5>
                 <small class="text-muted fw-bold" style="font-family: monospace; font-size: 0.9rem;">@Yong</small>
             </div>
 
@@ -160,17 +213,17 @@
                             <a href="#" onclick="toggleDriveConfig()" style="font-size: 0.75rem;">⚙️ API</a>
                         </div>
                         <div id="drive-config">
-                            <small class="d-block text-danger mb-2">Requires http://localhost</small>
+                            <small class="d-block mb-2">Requires http://localhost</small>
                             <input type="text" id="gApiKey" class="form-control form-control-sm mb-1" placeholder="API Key">
                             <input type="text" id="gClientId" class="form-control form-control-sm mb-1" placeholder="Client ID">
                             <input type="text" id="gAppId" class="form-control form-control-sm mb-2" placeholder="App ID">
-                            <button class="btn btn-xs btn-dark w-100" onclick="saveDriveConfig()">Save Config</button>
+                            <button class="btn btn-xs btn-secondary w-100" onclick="saveDriveConfig()">Save Config</button>
                         </div>
                         <button class="btn btn-sm btn-outline-primary w-100" id="drivePickBtn" onclick="handleAuthClick()">📂 Google Drive Picker</button>
                         <div id="drive-status" class="small text-muted mt-1 text-center"></div>
                     </div>
 
-                    <div class="d-flex flex-column gap-2 border-top pt-2">
+                    <div class="d-flex flex-column gap-2 border-top border-secondary pt-2">
                         <div class="d-flex justify-content-between">
                             <small class="text-muted" id="fileCount">0 files</small>
                             <button class="btn btn-xs btn-outline-danger" onclick="clearFiles()">Clear All</button>
@@ -209,17 +262,17 @@
                     
                     <div class="row g-1 mb-2">
                         <div class="col-6">
-                             <label class="axis-label fw-bold text-primary">Global Font (px)</label>
+                             <label class="axis-label fw-bold">Global Font (px)</label>
                              <input type="number" id="chartFontSizeInput" class="form-control form-control-sm" value="14" min="8" max="40" onchange="saveConfig()">
                         </div>
                         <div class="col-6">
-                             <label class="axis-label fw-bold text-primary">Legend Font (px)</label>
+                             <label class="axis-label fw-bold">Legend Font (px)</label>
                              <input type="number" id="legendFontSizeInput" class="form-control form-control-sm" value="12" min="8" max="40" onchange="saveConfig()">
                         </div>
                     </div>
                     
                     <div class="mb-2">
-                        <label class="axis-label fw-bold text-dark">Legend Position</label>
+                        <label class="axis-label fw-bold">Legend Position</label>
                         <select id="legendPosSelect" class="form-select form-select-sm" onchange="saveConfig()">
                             <option value="outside">Outside (Default)</option>
                             <option value="inside-tr">Inside Top-Right</option>
@@ -229,8 +282,8 @@
                         </select>
                     </div>
 
-                    <div class="row g-1 mb-2 bg-light border p-1 rounded">
-                        <div class="col-12"><small class="fw-bold text-dark">Export Size (px)</small></div>
+                    <div class="row g-1 mb-2 p-1 rounded border">
+                        <div class="col-12"><small class="fw-bold">Export Size (px)</small></div>
                         <div class="col-6">
                             <input type="number" id="exportWidthInput" class="form-control form-control-sm" placeholder="W" value="1920" onchange="saveConfig()">
                         </div>
@@ -251,7 +304,7 @@
                     <div class="form-check mb-2">
                         <input class="form-check-input" type="checkbox" id="distinctModeCheck" checked onchange="saveConfig(); document.getElementById('plotBtn').click();">
                         <label class="form-check-label small fw-bold" for="distinctModeCheck">
-                            ✨ Auto Markers & Colors (Manual Style)
+                            ✨ Auto Markers (Manual Style)
                         </label>
                     </div>
 
@@ -293,7 +346,7 @@
                 <div class="card-body p-0">
                     <div class="series-table-container">
                         <table class="table table-sm table-hover mb-0" id="fileTable" style="font-size: 0.9rem;">
-                            <thead class="table-light position-sticky top-0 start-0 border-bottom">
+                            <thead class="position-sticky top-0 start-0 border-bottom">
                                 <tr>
                                     <th width="25"></th>
                                     <th class="sortable-header" onclick="sortFiles()">Label <span id="sortIcon">↕</span></th>
@@ -315,7 +368,7 @@
                     <h6 class="mb-0 fw-bold ps-1" id="chart-view-title">Chart View</h6>
                     
                     <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-outline-dark" onclick="showChartPreview()" title="Preview selected size">
+                         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="showChartPreview()" title="Preview selected size">
                             👁️ Preview
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle ms-1" data-bs-toggle="dropdown" aria-expanded="false">
@@ -329,7 +382,7 @@
                         </ul>
                     </div>
                 </div>
-                <div style="flex: 1; border: 1px solid #ddd; border-radius: 4px; padding: 5px; position: relative;">
+                <div style="flex: 1; border: 1px solid var(--border-color); border-radius: 4px; padding: 5px; position: relative; background: var(--bg-panel);">
                     <div id="plotDiv"></div>
                 </div>
             </div>
@@ -337,16 +390,16 @@
             <div id="v-resizer"></div>
 
             <div id="table-container">
-                <div class="card mb-2 bg-light">
+                <div class="card mb-2">
                     <div class="card-body py-1 px-2">
                         <div class="row align-items-center gx-2">
                             <div class="col-auto"><strong class="small">Marker:</strong></div>
                             <div class="col-auto"><input type="number" id="markerXInput" class="form-control form-control-sm" placeholder="X Val" style="width: 80px;" step="0.1"></div>
                             <div class="col-auto"><select id="markerLineSelect" class="form-select form-select-sm" style="width: 150px;"></select></div>
                             <div class="col">
-                                <button class="btn btn-xs btn-dark" onclick="addMarker()">Add</button>
-                                <button class="btn btn-xs btn-outline-dark fw-bold" onclick="findMaxMarker()">Max</button>
-                                <button class="btn btn-xs btn-outline-dark fw-bold" onclick="findMinMarker()">Min</button>
+                                <button class="btn btn-xs btn-primary" onclick="addMarker()">Add</button>
+                                <button class="btn btn-xs btn-outline-primary fw-bold" onclick="findMaxMarker()">Max</button>
+                                <button class="btn btn-xs btn-outline-primary fw-bold" onclick="findMinMarker()">Min</button>
                                 <button class="btn btn-xs btn-danger ms-2" onclick="findOP1dB()">OP1dB</button>
                                 <button class="btn btn-xs btn-secondary" onclick="clearMarkers()">Clear</button>
                             </div>
@@ -355,9 +408,9 @@
                 </div>
 
                 <div class="card flex-grow-1" style="border: none; margin-bottom: 0; position: relative; overflow: hidden;">
-                    <div class="marker-scroll-container bg-white border rounded">
+                    <div class="marker-scroll-container rounded">
                         <table class="table table-sm mb-0" id="markerTable" style="font-size: 0.9rem;">
-                            <thead class="table-light position-sticky top-0">
+                            <thead class="position-sticky top-0">
                                 <tr>
                                     <th>Name</th>
                                     <th>Line</th>
@@ -379,11 +432,11 @@
 <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content">
-      <div class="modal-header bg-light py-2">
+      <div class="modal-header py-2">
         <h6 class="modal-title fw-bold">Export Preview</h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body text-center bg-light" style="overflow: auto;">
+      <div class="modal-body text-center" style="overflow: auto;">
         <div id="previewSpinner" class="spinner-border text-primary" role="status" style="display:none;">
             <span class="visually-hidden">Loading...</span>
         </div>
@@ -399,24 +452,23 @@
 </div>
 
 <script>
-    // --- FEATURE: UNIQUE COLORS V5.3 (HIGH CONTRAST) ---
-    const distinctHexColors = [
-        '#FF0000', '#0000FF', '#008000', '#FFD700', '#800080', '#00CED1', '#FF1493', '#8B4513', 
-        '#708090', '#DC143C', '#4B0082', '#556B2F', '#00BFFF', '#FFA500', '#FF69B4', '#2E8B57', 
-        '#CD5C5C', '#191970', '#808000', '#4682B4', '#DA70D6', '#A0522D', '#2F4F4F', '#FF4500', 
-        '#6A5ACD', '#32CD32', '#B22222', '#5F9EA0', '#9932CC', '#D2691E', '#000080', '#ADFF2F', 
-        '#FF6347', '#7B68EE', '#3CB371', '#C71585', '#D2B48C', '#6495ED', '#9ACD32', '#800000', 
-        '#008B8B', '#BA55D3', '#F4A460', '#4169E1', '#006400', '#E9967A', '#8A2BE2', '#20B2AA', 
-        '#DB7093', '#F08080', '#778899', '#B0C4DE', '#FFFF54', '#00FA9A', '#9370DB', '#BC8F8F', 
-        '#40E0D0', '#C0C0C0', '#483D8B', '#FF7F50'
+    // --- FEATURE: ADAPTIVE COLOR PALETTES V5.7 ---
+    // Dark Mode Palette (Neon/Bright)
+    const darkPalette = [
+        '#FF3333', '#3399FF', '#32CD32', '#FFD700', '#DA70D6', '#00FFFF', '#FF69B4', '#FFA07A', 
+        '#B0C4DE', '#FF6347', '#9370DB', '#98FB98', '#87CEFA', '#FFA500', '#FF1493', '#00FA9A', 
+        '#F08080', '#6495ED', '#EEE8AA', '#4682B4', '#DDA0DD', '#DEB887', '#5F9EA0', '#FF4500'
+    ];
+    // Light Mode Palette (Darker/High Contrast)
+    const lightPalette = [
+        '#D60000', '#0055CC', '#008000', '#D4AC0D', '#800080', '#008B8B', '#C71585', '#8B4513', 
+        '#2F4F4F', '#B22222', '#483D8B', '#556B2F', '#008B8B', '#CC8400', '#C71585', '#2E8B57', 
+        '#A52A2A', '#191970', '#808000', '#4682B4', '#9932CC', '#8B4513', '#2F4F4F', '#FF4500'
     ];
     
-    // --- FEATURE: PATTERN CYCLING (v5.5 - Markers Only) ---
-    const markerSymbols = ['circle', 'square', 'diamond', 'triangle-up', 'triangle-down', 'cross', 'x', 'star', 'hexagon', 'pentagon', 'hexagram', 'star-square'];
+    const markerSymbols = ['circle', 'square', 'diamond', 'triangle-up', 'triangle-down', 'cross', 'x', 'star', 'hexagon', 'pentagon'];
 
     let tabsData = {}; let activeTab = null; let tabCounter = 0;
-    
-    // Google Drive Config
     let driveConfig = { apiKey: '', clientId: '', appId: '' };
     let tokenClient, accessToken = null;
 
@@ -428,7 +480,30 @@
         }
     };
 
-    // --- Helper: HEX to RGBA ---
+    // --- FEATURE: THEME TOGGLE ---
+    window.toggleTheme = () => {
+        const body = document.body;
+        const current = body.getAttribute('data-theme');
+        body.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+        
+        // Regenerate colors for existing files if needed or just re-plot
+        // Re-plot is needed to update chart background and text colors
+        if(activeTab) {
+            updateColorsForTheme();
+            document.getElementById('plotBtn').click();
+        }
+    };
+
+    function updateColorsForTheme() {
+        if(!activeTab || !tabsData[activeTab]) return;
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
+        tabsData[activeTab].files.forEach((f, i) => {
+            // Update color based on current theme using the same index logic
+            f.color = getDistinctColor(i, isDark);
+        });
+        updateFileTable();
+    }
+
     function hexToRgba(hex, alpha) {
         if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
             let c = hex.substring(1).split('');
@@ -436,22 +511,21 @@
             c = '0x' + c.join('');
             return 'rgba(' + [(c>>16)&255, (c>>8)&255, c&255].join(',') + ',' + alpha + ')';
         }
-        return 'rgba(255,255,255,' + alpha + ')';
+        return 'rgba(128,128,128,' + alpha + ')';
     }
 
-    // --- Helper: Generate Distinct Color (HSL -> Hex) ---
-    function getDistinctColor(idx) {
-        if(idx < distinctHexColors.length) {
-            return distinctHexColors[idx];
-        }
+    function getDistinctColor(idx, isDark) {
+        const palette = isDark ? darkPalette : lightPalette;
+        if(idx < palette.length) return palette[idx];
+        
+        // Fallback generator
         const hue = (idx * 137.508) % 360; 
-        const lightness = 40 + (idx % 3) * 15;
-        return hslToHex(hue, 80, lightness);
+        const lightness = isDark ? (60 + (idx % 3) * 10) : (40 + (idx % 3) * 10); 
+        return hslToHex(hue, 85, lightness);
     }
 
     function hslToHex(h, s, l) {
-        l /= 100;
-        const a = s * Math.min(l, 1 - l) / 100;
+        l /= 100; const a = s * Math.min(l, 1 - l) / 100;
         const f = n => {
             const k = (n + h / 30) % 12;
             const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
@@ -460,163 +534,60 @@
         return `#${f(0)}${f(8)}${f(4)}`;
     }
 
-    // --- FEATURE: PREVIEW (v5.0) ---
+    // --- PREVIEW ---
     window.showChartPreview = async () => {
         const w = parseInt(document.getElementById('exportWidthInput').value) || 1920;
         const h = parseInt(document.getElementById('exportHeightInput').value) || 1080;
-        
         const modal = new bootstrap.Modal(document.getElementById('previewModal'));
         const img = document.getElementById('previewImage');
         const spinner = document.getElementById('previewSpinner');
         const dims = document.getElementById('previewDims');
 
-        img.style.display = 'none';
-        spinner.style.display = 'inline-block';
+        img.style.display = 'none'; spinner.style.display = 'inline-block';
         dims.innerText = `Rendering ${w} x ${h} ...`;
         modal.show();
 
         try {
-            // Use Plotly toImage to generate a Data URL
-            const url = await Plotly.toImage('plotDiv', {
-                format: 'png',
-                width: w,
-                height: h
-            });
-            
+            const url = await Plotly.toImage('plotDiv', { format: 'png', width: w, height: h });
             img.src = url;
-            img.onload = () => {
-                spinner.style.display = 'none';
-                img.style.display = 'block';
-                dims.innerText = `Dimensions: ${w}px x ${h}px`;
-            };
-        } catch (e) {
-            console.error(e);
-            dims.innerText = "Error generating preview.";
-            spinner.style.display = 'none';
-        }
+            img.onload = () => { spinner.style.display = 'none'; img.style.display = 'block'; dims.innerText = `Dimensions: ${w}px x ${h}px`; };
+        } catch (e) { console.error(e); dims.innerText = "Error generating preview."; spinner.style.display = 'none'; }
     };
 
     window.downloadFromPreview = () => {
-        const img = document.getElementById('previewImage');
-        if(!img.src) return;
+        const img = document.getElementById('previewImage'); if(!img.src) return;
         const link = document.createElement('a');
-        link.download = `${tabsData[activeTab].name}_Chart_${document.getElementById('exportWidthInput').value}x${document.getElementById('exportHeightInput').value}.png`;
-        link.href = img.src;
-        link.click();
+        link.download = `${tabsData[activeTab].name}_Chart.png`;
+        link.href = img.src; link.click();
     };
 
-    // --- FEATURE: ULTRA-ROBUST EXPORT (v4.9) ---
+    // --- EXPORT ---
     window.exportView = (mode) => {
-        // --- 針對 "Only Chart" 使用 Plotly 原生下載 (支援自訂尺寸) ---
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
         if (mode === 'chart') {
             const w = parseInt(document.getElementById('exportWidthInput').value) || 1920;
             const h = parseInt(document.getElementById('exportHeightInput').value) || 1080;
-            const fileName = `${tabsData[activeTab].name}_Chart`;
-
-            Plotly.downloadImage('plotDiv', {
-                format: 'png', 
-                width: w, 
-                height: h, 
-                filename: fileName
-            });
-            return; // 結束，不執行下方的 html2canvas
+            Plotly.downloadImage('plotDiv', { format: 'png', width: w, height: h, filename: `${tabsData[activeTab].name}_Chart` });
+            return; 
         }
-
-        // --- 針對 "Table" 或 "Full" 繼續使用 html2canvas ---
         const btn = document.querySelector('.dropdown-toggle');
-        const originalText = btn.innerText;
-        btn.innerText = "Processing...";
-
-        const rightPanel = document.getElementById('right-panel');
-        const chartContainer = document.getElementById('chart-container');
-        const tableContainer = document.getElementById('table-container');
-        const tableScroll = document.querySelector('.marker-scroll-container');
-        const mainWrapper = document.getElementById('main-wrapper');
-        const appContainer = document.getElementById('app-container');
+        const originalText = btn.innerText; btn.innerText = "Processing...";
+        const targetElement = document.getElementById(mode === 'table' ? 'table-container' : 'right-panel');
         
-        const targetId = (mode === 'table' ? 'table-container' : 'right-panel');
-        const targetElement = document.getElementById(targetId);
-
-        // Snapshot original styles
-        const styles = {
-            html: { height: document.documentElement.style.height, overflow: document.documentElement.style.overflow },
-            body: { height: document.body.style.height, overflow: document.body.style.overflow },
-            mw: { height: mainWrapper.style.height, overflow: mainWrapper.style.overflow },
-            app: { height: appContainer.style.height, overflow: appContainer.style.overflow },
-            rp: { height: rightPanel.style.height, overflow: rightPanel.style.overflow },
-            cc: { height: chartContainer.style.height, flex: chartContainer.style.flex },
-            tc: { height: tableContainer.style.height, flex: tableContainer.style.flex, overflow: tableContainer.style.overflow },
-            ts: { position: tableScroll.style.position, overflow: tableScroll.style.overflow, height: tableScroll.style.height }
-        };
-
-        if (mode !== 'chart') {
-            // 1. Lock Chart Height to prevent shrinking/disappearing
-            const currentChartHeight = chartContainer.offsetHeight;
-            chartContainer.style.flex = 'none';
-            chartContainer.style.height = `${currentChartHeight}px`;
-
-            // 2. Remove SCROLL restrictions globally
-            // This forces the "scrollable" inner divs to push the body size
-            document.documentElement.style.height = 'auto';
-            document.documentElement.style.overflow = 'visible';
-            document.body.style.height = 'auto';
-            document.body.style.overflow = 'visible';
-            mainWrapper.style.height = 'auto';
-            mainWrapper.style.overflow = 'visible';
-            appContainer.style.height = 'auto';
-            appContainer.style.overflow = 'visible';
-            rightPanel.style.height = 'auto';
-            rightPanel.style.overflow = 'visible';
-
-            // 3. Expand the Table
-            tableScroll.style.position = 'static'; // Crucial: removes absolute constraint
-            tableScroll.style.overflow = 'visible';
-            tableScroll.style.height = 'auto';
-            
-            tableContainer.style.flex = 'none'; 
-            tableContainer.style.height = 'auto'; 
-            tableContainer.style.overflow = 'visible';
-        }
-
-        setTimeout(() => {
-            // 4. Capture with explicit size params
-            // We calculate the FULL expanded height of the target
-            const fullHeight = targetElement.scrollHeight;
-            
-            html2canvas(targetElement, { 
-                backgroundColor: '#ffffff', 
-                scale: 2,
-                height: fullHeight, // Force canvas to capture full height
-                windowHeight: fullHeight // Pretend the window is massive
-            }).then(canvas => {
-                // 5. Restore Original Styles
-                if (mode !== 'chart') {
-                    document.documentElement.style.height = styles.html.height; document.documentElement.style.overflow = styles.html.overflow;
-                    document.body.style.height = styles.body.height; document.body.style.overflow = styles.body.overflow;
-                    mainWrapper.style.height = styles.mw.height; mainWrapper.style.overflow = styles.mw.overflow;
-                    appContainer.style.height = styles.app.height; appContainer.style.overflow = styles.app.overflow;
-                    rightPanel.style.height = styles.rp.height; rightPanel.style.overflow = styles.rp.overflow;
-                    chartContainer.style.height = styles.cc.height; chartContainer.style.flex = styles.cc.flex;
-                    tableContainer.style.height = styles.tc.height; tableContainer.style.flex = styles.tc.flex; tableContainer.style.overflow = styles.tc.overflow;
-                    tableScroll.style.position = styles.ts.position; tableScroll.style.overflow = styles.ts.overflow; tableScroll.style.height = styles.ts.height;
-                }
-                
-                const link = document.createElement('a');
-                link.download = `${tabsData[activeTab].name}_${mode === 'table' ? 'Table' : 'FullView'}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-                btn.innerText = originalText;
-            }).catch(e => {
-                console.error(e);
-                btn.innerText = "Error";
-            });
-        }, 100); 
+        // Capture exactly what is seen (Background color matters)
+        const bg = isDark ? '#121212' : '#ffffff';
+        
+        html2canvas(targetElement, { backgroundColor: bg, scale: 2 }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `${tabsData[activeTab].name}_${mode === 'table' ? 'Table' : 'FullView'}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            btn.innerText = originalText;
+        }).catch(e => { console.error(e); btn.innerText = "Error"; });
     };
 
     window.exportMergedCSV = () => {
-        if (!tabsData[activeTab] || tabsData[activeTab].files.length === 0) {
-            alert("No files to export."); return;
-        }
+        if (!tabsData[activeTab] || tabsData[activeTab].files.length === 0) { alert("No files."); return; }
         const files = tabsData[activeTab].files.filter(f => f.selected);
         if (files.length === 0) { alert("No files selected."); return; }
         const config = tabsData[activeTab].config;
@@ -628,7 +599,7 @@
             file.data.forEach(row => {
                 const x = row[config.xCol];
                 const y = row[config.yCol];
-                if (x !== undefined && y !== undefined && x !== null && y !== null && x !== "" && y !== "") {
+                if (x !== undefined && y !== undefined && x !== null && y !== null && x !== "") {
                     if (!xMap.has(x)) xMap.set(x, {});
                     xMap.get(x)[fIdx] = y;
                 }
@@ -668,8 +639,7 @@
         driveConfig.clientId = document.getElementById('gClientId').value;
         driveConfig.appId = document.getElementById('gAppId').value;
         localStorage.setItem('drive_cfg', JSON.stringify(driveConfig));
-        alert("Config saved! Refresh required.");
-        toggleDriveConfig(); loadGapi();
+        alert("Config saved! Refresh required."); toggleDriveConfig(); loadGapi();
     }
     function loadDriveConfig() {
         const saved = localStorage.getItem('drive_cfg');
@@ -692,8 +662,7 @@
     function handleAuthClick() {
         if(!driveConfig.apiKey) { alert("Setup API first."); return; }
         tokenClient.callback = async (resp) => {
-            if (resp.error) throw (resp);
-            accessToken = resp.access_token; createPicker();
+            if (resp.error) throw (resp); accessToken = resp.access_token; createPicker();
         };
         tokenClient.requestAccessToken({prompt: ''});
     }
@@ -722,18 +691,11 @@
         }
     }
 
-    function getSyncColor(name, idx) {
-        const keys = Object.keys(tabsData);
-        if (keys.length > 0) {
-            const match = tabsData[keys[0]].files.find(f => f.originalName === name || f.name === name.replace('.csv',''));
-            if (match) return match.color;
-        }
-        return getDistinctColor(idx); // Use new distinct color generator
-    }
-
     function handleDriveFiles(filesObjList) {
         const headerRow = (parseInt(document.getElementById('headerRowInput').value) || 1) - 1;
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
         let filesList = tabsData[activeTab].files;
+        
         filesObjList.forEach(obj => {
             const lines = obj.content.split(/\r\n|\n/);
             if (lines.length <= headerRow) return;
@@ -746,7 +708,7 @@
                         while (filesList.some(f => f.name === fName)) { fName = `${obj.name.replace('.csv', '')} (${c})`; c++; }
                         filesList.push({
                             id: Date.now() + Math.random(), name: fName, originalName: obj.name,
-                            data: res.data, color: getSyncColor(obj.name, filesList.length), selected: true, dash: 'solid'
+                            data: res.data, color: getDistinctColor(filesList.length, isDark), selected: true, dash: 'solid'
                         });
                         finishProcessing(null);
                     }
@@ -759,7 +721,6 @@
         tabCounter++;
         const tabId = `tab_${Date.now()}`;
         let files = [], config = { fontSize: 14, legendFontSize: 12, headerRow: 1, chartType: 'lines+markers' };
-        
         if (Object.keys(tabsData).length > 0) {
             const src = tabsData[Object.keys(tabsData)[0]];
             files = [...src.rawFiles]; config = { ...src.config };
@@ -804,10 +765,7 @@
         c.exportW = document.getElementById('exportWidthInput').value;
         c.exportH = document.getElementById('exportHeightInput').value;
         c.legendPos = document.getElementById('legendPosSelect').value; 
-        
-        // Save Distinct Mode
         c.distinctMode = document.getElementById('distinctModeCheck').checked;
-
         c.chartType = document.getElementById('chartTypeSelect').value;
         c.xLabel = document.getElementById('xLabelInput').value; c.yLabel = document.getElementById('yLabelInput').value;
         c.headerRow = document.getElementById('headerRowInput').value;
@@ -822,14 +780,10 @@
         document.getElementById('chartTitle').value = c.chartTitle || '';
         document.getElementById('chartFontSizeInput').value = c.fontSize || 14;
         document.getElementById('legendFontSizeInput').value = c.legendFontSize || 12;
-        
         document.getElementById('exportWidthInput').value = c.exportW || 1920;
         document.getElementById('exportHeightInput').value = c.exportH || 1080;
         document.getElementById('legendPosSelect').value = c.legendPos || 'outside'; 
-        
-        // Restore Distinct Mode
         document.getElementById('distinctModeCheck').checked = (c.distinctMode !== undefined) ? c.distinctMode : true;
-
         document.getElementById('chartTypeSelect').value = c.chartType || 'lines+markers';
         document.getElementById('xLabelInput').value = c.xLabel || ''; document.getElementById('yLabelInput').value = c.yLabel || '';
         document.getElementById('headerRowInput').value = c.headerRow || 1;
@@ -895,6 +849,7 @@
     function processFiles(list, isReparse=false) {
         let processed = 0;
         const headerRow = (parseInt(document.getElementById('headerRowInput').value) || 1) - 1;
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
         let targetList = isReparse ? [] : tabsData[activeTab].files;
 
         list.forEach(file => {
@@ -911,7 +866,7 @@
                                 while(targetList.some(f => f.name === final)) { final = `${name} (${c})`; c++; }
                                 targetList.push({
                                     id: Date.now()+Math.random(), name: final, originalName: file.name,
-                                    data: res.data, color: getSyncColor(file.name, targetList.length), selected: true, dash: 'solid'
+                                    data: res.data, color: getDistinctColor(targetList.length, isDark), selected: true, dash: 'solid'
                                 });
                             }
                             processed++;
@@ -954,9 +909,8 @@
         const tbody = document.querySelector('#fileTable tbody'); tbody.innerHTML = '';
         tabsData[activeTab].files.forEach((f, i) => {
             const tr = document.createElement('tr');
-            // FEATURE: Added Style Select Column
             tr.innerHTML = `<td><input type="checkbox" class="form-check-input" ${f.selected?'checked':''} onchange="toggleFile(${i},this.checked)"></td>
-                            <td><input type="text" class="form-control form-control-sm border-0 bg-transparent p-0" value="${f.name}" onchange="updateLabel(${i},this.value)"></td>
+                            <td><input type="text" class="form-control form-control-sm border-0 bg-transparent p-0" style="color:var(--text-main);" value="${f.name}" onchange="updateLabel(${i},this.value)"></td>
                             <td><input type="color" class="form-control form-control-sm form-control-color p-0" value="${f.color}" onchange="updateColor(${i},this.value)"></td>
                             <td>
                                 <select class="style-select" onchange="updateLineStyle(${i}, this.value)">
@@ -994,9 +948,10 @@
         const chartType = document.getElementById('chartTypeSelect').value || 'lines+markers';
         const legPos = document.getElementById('legendPosSelect').value;
         const useDistinct = document.getElementById('distinctModeCheck').checked;
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
 
         let traces = [], shapes = [];
-        let visibleIdx = 0; // Counter for visible traces to assign cycle styles correctly
+        let visibleIdx = 0; 
 
         files.forEach(f => {
             if(!f.selected) return;
@@ -1005,58 +960,50 @@
             let combo = xd.map((x,i) => ({x, y:yd[i]})).sort((a,b) => a.x - b.x);
             f.cacheX = combo.map(d=>d.x); f.cacheY = combo.map(d=>d.y);
 
-            // --- PATTERN LOGIC V5.5 ---
-            // Dash: controlled manually (default 'solid')
             let lineStyle = f.dash || 'solid'; 
-            
-            // Markers: cycled if distinct mode is on
             let markerSymbol = 'circle';
-            if (useDistinct) {
-                markerSymbol = markerSymbols[visibleIdx % markerSymbols.length];
-            }
+            if (useDistinct) { markerSymbol = markerSymbols[visibleIdx % markerSymbols.length]; }
 
             traces.push({ 
                 x: f.cacheX, y: f.cacheY, 
                 mode: chartType, 
                 type: 'scatter', 
                 name: f.name, 
-                line: {
-                    color: f.color, 
-                    width: useDistinct ? 2.5 : 2, 
-                    dash: lineStyle // Manual style overrides auto logic
-                }, 
-                marker: {
-                    size: useDistinct ? 7 : 6, 
-                    symbol: markerSymbol
-                }, 
+                line: { color: f.color, width: useDistinct ? 2.5 : 2, dash: lineStyle }, 
+                marker: { size: useDistinct ? 7 : 6, symbol: markerSymbol }, 
                 customdata: f.id 
             });
             visibleIdx++;
         });
 
         const sv = parseFloat(document.getElementById('specInput').value);
-        if(!isNaN(sv)) shapes.push({ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: sv, y1: sv, line: {color: 'black', width: 2, dash: 'dash'} });
+        if(!isNaN(sv)) shapes.push({ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: sv, y1: sv, line: {color: '#ff5555', width: 2, dash: 'dash'} });
 
-        // Legend Layout Logic
-        let legendLayout = { bgcolor: 'rgba(255,255,255,0.6)', borderwidth: 0, font: {size: lfs}, itemsizing: 'constant' };
+        const themeColor = isDark ? '#e0e0e0' : '#212529';
+        const gridColor = isDark ? '#444' : '#e9ecef';
+        const paperBg = isDark ? '#1e1e1e' : '#ffffff';
+        const legendBg = isDark ? 'rgba(30,30,30,0.7)' : 'rgba(255,255,255,0.7)';
+
+        let legendLayout = { bgcolor: legendBg, borderwidth: 0, font: {size: lfs, color: themeColor}, itemsizing: 'constant' };
         if (legPos === 'inside-tr') { Object.assign(legendLayout, { x: 0.99, y: 0.99, xanchor: 'right', yanchor: 'top' }); }
         else if (legPos === 'inside-tl') { Object.assign(legendLayout, { x: 0.01, y: 0.99, xanchor: 'left', yanchor: 'top' }); }
         else if (legPos === 'inside-br') { Object.assign(legendLayout, { x: 0.99, y: 0.01, xanchor: 'right', yanchor: 'bottom' }); }
         else if (legPos === 'inside-bl') { Object.assign(legendLayout, { x: 0.01, y: 0.01, xanchor: 'left', yanchor: 'bottom' }); }
 
         const layout = {
-            title: { text: document.getElementById('chartTitle').value || `${yc} vs ${xc}`, font: {size: Math.round(fs*1.3)} },
+            title: { text: document.getElementById('chartTitle').value || `${yc} vs ${xc}`, font: {size: Math.round(fs*1.3), color: themeColor} },
+            paper_bgcolor: paperBg,
+            plot_bgcolor: paperBg,
+            font: { color: themeColor },
             xaxis: { 
-                title: {text: document.getElementById('xLabelInput').value||xc, font:{size:fs}}, 
-                tickfont:{size:fs-2}, range: getRange('x'), dtick: getVal('xStep'),
-                zeroline: false, zerolinecolor: 'rgba(0,0,0,0)', zerolinewidth: 0,
-                showline: true, mirror: true
+                title: {text: document.getElementById('xLabelInput').value||xc, font:{size:fs, color: themeColor}}, 
+                tickfont:{size:fs-2, color: themeColor}, range: getRange('x'), dtick: getVal('xStep'),
+                zeroline: false, showline: true, mirror: true, gridcolor: gridColor, linecolor: '#666'
             },
             yaxis: { 
-                title: {text: document.getElementById('yLabelInput').value||yc, font:{size:fs}}, 
-                tickfont:{size:fs-2}, range: getRange('y'), dtick: getVal('yStep'),
-                zeroline: false, zerolinecolor: 'rgba(0,0,0,0)', zerolinewidth: 0,
-                showline: true, mirror: true
+                title: {text: document.getElementById('yLabelInput').value||yc, font:{size:fs, color: themeColor}}, 
+                tickfont:{size:fs-2, color: themeColor}, range: getRange('y'), dtick: getVal('yStep'),
+                zeroline: false, showline: true, mirror: true, gridcolor: gridColor, linecolor: '#666'
             },
             hovermode: 'closest', shapes: shapes,
             legend: legendLayout,
@@ -1082,7 +1029,6 @@
         tabsData[activeTab].files.forEach((f, i) => { if(f.selected) sel.add(new Option(f.name, i)); });
     }
 
-    // --- Markers ---
     function interpolate(tx, xa, ya) {
         if(tx < xa[0] || tx > xa[xa.length-1]) return null;
         let i = xa.findIndex(x => x >= tx);
@@ -1135,20 +1081,20 @@
     function renderMarker(m) {
         Plotly.addTraces('plotDiv', {
             x: [m.x], y: [m.y], mode: 'markers+text', type: 'scatter',
-            marker: {color: 'red', size: 10, symbol: 'circle-open', line: {width: 2}},
+            marker: {color: '#ff3333', size: 10, symbol: 'circle-open', line: {width: 2}},
             text: [`${m.name}<br>${m.y.toFixed(2)}`], textposition: 'top center', showlegend: false, hoverinfo: 'text'
         });
         const l = document.getElementById('plotDiv').layout;
         const ns = (l.shapes||[]).concat([
-            {type: 'line', x0: m.x, y0: l.yaxis.range?l.yaxis.range[0]:0, x1: m.x, y1: m.y, line:{color:'red', dash:'dot', width:1}},
-            {type: 'line', x0: l.xaxis.range?l.xaxis.range[0]:0, y0: m.y, x1: m.x, y1: m.y, line:{color:'red', dash:'dot', width:1}}
+            {type: 'line', x0: m.x, y0: l.yaxis.range?l.yaxis.range[0]:0, x1: m.x, y1: m.y, line:{color:'#ff3333', dash:'dot', width:1}},
+            {type: 'line', x0: l.xaxis.range?l.xaxis.range[0]:0, y0: m.y, x1: m.x, y1: m.y, line:{color:'#ff3333', dash:'dot', width:1}}
         ]);
         Plotly.relayout('plotDiv', {shapes: ns});
 
         const f = tabsData[activeTab].files.find(x => x.id === m.fileId);
         const tr = document.createElement('tr');
-        if(f) tr.style.backgroundColor = hexToRgba(f.color, 0.2); 
-        tr.innerHTML = `<td>${m.name}</td><td>${m.lineName}</td><td>${m.x.toFixed(2)}</td><td>${m.y.toFixed(2)}</td><td>${m.note}</td><td><button class="btn btn-xs btn-danger" onclick="removeMarker(${m.id})">Del</button></td>`;
+        if(f) tr.style.backgroundColor = hexToRgba(f.color, 0.3); // Highlight
+        tr.innerHTML = `<td style="color:var(--text-main);">${m.name}</td><td style="color:var(--text-main);">${m.lineName}</td><td style="color:var(--text-main);">${m.x.toFixed(2)}</td><td style="color:var(--text-main);">${m.y.toFixed(2)}</td><td style="color:var(--text-main);">${m.note}</td><td><button class="btn btn-xs btn-danger" onclick="removeMarker(${m.id})">Del</button></td>`;
         document.querySelector('#markerTable tbody').appendChild(tr);
     }
 
