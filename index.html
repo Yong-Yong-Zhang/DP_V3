@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Plotting Tool v5.7 (Dual Theme) @Yong</title>
+    <title>Data Plotting Tool v5.9 (Fix & Export) @Yong</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -75,7 +75,7 @@
             color: var(--text-main); 
             background-color: var(--bg-body); 
             border-color: var(--border-color) var(--border-color) var(--bg-body); 
-            border-bottom: 2px solid transparent; /* Fix overlap */
+            border-bottom: 2px solid transparent; 
         }
         .tab-close-btn:hover { background-color: #dc3545; color: white; border-radius: 50%; width: 20px; text-align: center;}
         #add-tab-btn { cursor: pointer; font-weight: bold; padding: 5px 10px; color: #28a745; font-size: 1.2rem; }
@@ -194,7 +194,7 @@
     <div id="app-container">
         <div id="left-panel">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h5 class="mb-0">Control Panel <span class="badge bg-secondary fs-6">v5.7</span></h5>
+                <h5 class="mb-0">Control Panel <span class="badge bg-secondary fs-6">v5.9</span></h5>
                 <small class="text-muted fw-bold" style="font-family: monospace; font-size: 0.9rem;">@Yong</small>
             </div>
 
@@ -452,20 +452,17 @@
 </div>
 
 <script>
-    // --- FEATURE: ADAPTIVE COLOR PALETTES V5.7 ---
-    // Dark Mode Palette (Neon/Bright)
+    // --- FEATURE: ADAPTIVE COLOR PALETTES ---
     const darkPalette = [
         '#FF3333', '#3399FF', '#32CD32', '#FFD700', '#DA70D6', '#00FFFF', '#FF69B4', '#FFA07A', 
         '#B0C4DE', '#FF6347', '#9370DB', '#98FB98', '#87CEFA', '#FFA500', '#FF1493', '#00FA9A', 
         '#F08080', '#6495ED', '#EEE8AA', '#4682B4', '#DDA0DD', '#DEB887', '#5F9EA0', '#FF4500'
     ];
-    // Light Mode Palette (Darker/High Contrast)
     const lightPalette = [
         '#D60000', '#0055CC', '#008000', '#D4AC0D', '#800080', '#008B8B', '#C71585', '#8B4513', 
         '#2F4F4F', '#B22222', '#483D8B', '#556B2F', '#008B8B', '#CC8400', '#C71585', '#2E8B57', 
         '#A52A2A', '#191970', '#808000', '#4682B4', '#9932CC', '#8B4513', '#2F4F4F', '#FF4500'
     ];
-    
     const markerSymbols = ['circle', 'square', 'diamond', 'triangle-up', 'triangle-down', 'cross', 'x', 'star', 'hexagon', 'pentagon'];
 
     let tabsData = {}; let activeTab = null; let tabCounter = 0;
@@ -485,22 +482,13 @@
         const body = document.body;
         const current = body.getAttribute('data-theme');
         body.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
-        
-        // Regenerate colors for existing files if needed or just re-plot
-        // Re-plot is needed to update chart background and text colors
-        if(activeTab) {
-            updateColorsForTheme();
-            document.getElementById('plotBtn').click();
-        }
+        if(activeTab) { updateColorsForTheme(); document.getElementById('plotBtn').click(); }
     };
 
     function updateColorsForTheme() {
         if(!activeTab || !tabsData[activeTab]) return;
         const isDark = document.body.getAttribute('data-theme') === 'dark';
-        tabsData[activeTab].files.forEach((f, i) => {
-            // Update color based on current theme using the same index logic
-            f.color = getDistinctColor(i, isDark);
-        });
+        tabsData[activeTab].files.forEach((f, i) => { f.color = getDistinctColor(i, isDark); });
         updateFileTable();
     }
 
@@ -517,8 +505,6 @@
     function getDistinctColor(idx, isDark) {
         const palette = isDark ? darkPalette : lightPalette;
         if(idx < palette.length) return palette[idx];
-        
-        // Fallback generator
         const hue = (idx * 137.508) % 360; 
         const lightness = isDark ? (60 + (idx % 3) * 10) : (40 + (idx % 3) * 10); 
         return hslToHex(hue, 85, lightness);
@@ -561,29 +547,112 @@
         link.href = img.src; link.click();
     };
 
-    // --- EXPORT ---
+    // --- EXPORT v5.9 FIX (Force Full Expansion Corrected) ---
     window.exportView = (mode) => {
         const isDark = document.body.getAttribute('data-theme') === 'dark';
+        
         if (mode === 'chart') {
             const w = parseInt(document.getElementById('exportWidthInput').value) || 1920;
             const h = parseInt(document.getElementById('exportHeightInput').value) || 1080;
             Plotly.downloadImage('plotDiv', { format: 'png', width: w, height: h, filename: `${tabsData[activeTab].name}_Chart` });
             return; 
         }
+
         const btn = document.querySelector('.dropdown-toggle');
         const originalText = btn.innerText; btn.innerText = "Processing...";
         const targetElement = document.getElementById(mode === 'table' ? 'table-container' : 'right-panel');
-        
-        // Capture exactly what is seen (Background color matters)
         const bg = isDark ? '#121212' : '#ffffff';
-        
-        html2canvas(targetElement, { backgroundColor: bg, scale: 2 }).then(canvas => {
-            const link = document.createElement('a');
-            link.download = `${tabsData[activeTab].name}_${mode === 'table' ? 'Table' : 'FullView'}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-            btn.innerText = originalText;
-        }).catch(e => { console.error(e); btn.innerText = "Error"; });
+
+        // 1. 識別需要展開的元素
+        // 修正點：增加了 scrollContainer 的父層 Card，確保它也能被撐開
+        const scrollContainer = document.querySelector('.marker-scroll-container');
+        const scrollParentCard = scrollContainer ? scrollContainer.parentElement : null;
+
+        const elementsToExpand = [
+            document.documentElement,
+            document.body,
+            document.getElementById('main-wrapper'),
+            document.getElementById('app-container'),
+            document.getElementById('right-panel'),
+            document.getElementById('table-container'),
+            scrollParentCard, // 新增：包含表格的外層 Card
+            scrollContainer
+        ];
+
+        // 2. 備份樣式 (Backup Styles)
+        const backups = elementsToExpand.map(el => {
+            if (!el) return { el: null };
+            return {
+                el: el,
+                style: {
+                    height: el.style.height,
+                    overflow: el.style.overflow,
+                    maxHeight: el.style.maxHeight,
+                    flex: el.style.flex,
+                    position: el.style.position // 新增：備份 position 屬性
+                }
+            };
+        });
+
+        // 3. 鎖定圖表高度 (Lock Chart Height)
+        // 避免表格展開時壓縮到圖表區域，導致圖表變形或消失
+        const chartContainer = document.getElementById('chart-container');
+        const chartBackup = { el: chartContainer, height: chartContainer.style.height, flex: chartContainer.style.flex };
+        const currentChartH = chartContainer.offsetHeight;
+        chartContainer.style.height = currentChartH + 'px';
+        chartContainer.style.flex = 'none';
+
+        // 4. 套用展開樣式 & 背景色 (Apply Expansion)
+        if (mode !== 'chart') {
+            elementsToExpand.forEach(el => {
+                if(el) {
+                    el.style.height = 'auto';
+                    el.style.overflow = 'visible';
+                    el.style.maxHeight = 'none';
+                    
+                    // 修正關鍵：表格容器原本是 absolute，必須改為 relative 才能撐開父層高度
+                    if(el.classList.contains('marker-scroll-container')) {
+                        el.style.position = 'relative';
+                    }
+
+                    if(el.id === 'table-container') el.style.flex = 'none'; 
+                    
+                    // 補上背景色防止透明變黑
+                    if(el.tagName === 'BODY' || el.id === 'right-panel' || el.classList.contains('marker-scroll-container')) {
+                        el.style.backgroundColor = bg;
+                    }
+                }
+            });
+        }
+
+        // Wait slightly longer for reflow
+        setTimeout(() => {
+            html2canvas(targetElement, { 
+                backgroundColor: bg, 
+                scale: 2,
+                windowHeight: document.documentElement.scrollHeight + 1000 // 加大虛擬高度確保能容納
+            }).then(canvas => {
+                // 5. 還原樣式 (Restore Styles)
+                backups.forEach(b => {
+                    if(b.el) {
+                        b.el.style.height = b.style.height;
+                        b.el.style.overflow = b.style.overflow;
+                        b.el.style.maxHeight = b.style.maxHeight;
+                        b.el.style.flex = b.style.flex;
+                        b.el.style.position = b.style.position; // 還原 position
+                        if(b.el.id === 'right-panel') b.el.style.backgroundColor = ''; 
+                    }
+                });
+                chartContainer.style.height = chartBackup.height;
+                chartContainer.style.flex = chartBackup.flex;
+
+                const link = document.createElement('a');
+                link.download = `${tabsData[activeTab].name}_${mode === 'table' ? 'Table' : 'FullView'}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                btn.innerText = originalText;
+            }).catch(e => { console.error(e); btn.innerText = "Error"; });
+        }, 500); 
     };
 
     window.exportMergedCSV = () => {
@@ -708,7 +777,10 @@
                         while (filesList.some(f => f.name === fName)) { fName = `${obj.name.replace('.csv', '')} (${c})`; c++; }
                         filesList.push({
                             id: Date.now() + Math.random(), name: fName, originalName: obj.name,
-                            data: res.data, color: getDistinctColor(filesList.length, isDark), selected: true, dash: 'solid'
+                            data: res.data, 
+                            // BUG FIX: Corrected function name
+                            color: getDistinctColor(targetList.length, isDark), 
+                            selected: true, dash: 'solid'
                         });
                         finishProcessing(null);
                     }
@@ -859,14 +931,17 @@
                 if(lines.length > headerRow) {
                     Papa.parse(lines.slice(headerRow).join('\n'), {
                         header: true, dynamicTyping: true, skipEmptyLines: true,
-                        complete: (res) => {
+                        complete: function(res) {
                             if(res.meta.fields && res.meta.fields.length) {
                                 let name = (file.importMode === 'folder' && file.webkitRelativePath) ? file.webkitRelativePath.replace('.csv','') : file.name.replace('.csv','');
                                 let final = name, c = 1;
                                 while(targetList.some(f => f.name === final)) { final = `${name} (${c})`; c++; }
                                 targetList.push({
                                     id: Date.now()+Math.random(), name: final, originalName: file.name,
-                                    data: res.data, color: getDistinctColor(targetList.length, isDark), selected: true, dash: 'solid'
+                                    data: res.data, 
+                                    // FIXED: Used wrong function name in previous version (getSyncColor -> getDistinctColor)
+                                    color: getDistinctColor(targetList.length, isDark), 
+                                    selected: true, dash: 'solid'
                                 });
                             }
                             processed++;
